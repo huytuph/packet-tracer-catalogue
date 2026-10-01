@@ -1,5 +1,7 @@
 # Cisco Packet Tracer Network Device Catalogue
 
+A community catalogue of Cisco Packet Tracer network devices for searching, comparing and choosing devices by ports and features, with module compatibility and connection options across Packet Tracer versions 6, 7, 8 and 9.
+
 [Open the catalogue](https://huytuph.github.io/packet-tracer-catalogue/)
 
 ## Data Policy
