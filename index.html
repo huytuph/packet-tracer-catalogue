@@ -28,6 +28,7 @@
     <button class="tab" data-view="compare">Compare</button>
     <button class="tab" data-view="modules">Modules</button>
     <button class="tab" data-view="connections">Connections</button>
+    <button class="tab" data-view="builder"><img class="button-icon" src="assets/icons/shopping-cart.svg" alt="" aria-hidden="true"> CLI Builder <span id="builderCount" class="selection-count" aria-live="polite" aria-label="Selected components count">0</span></button>
     <button class="tab" data-view="sources">Sources</button>
     <button class="tab" data-view="about">About</button>
   </nav>
@@ -151,6 +152,13 @@
       <div id="connectionOutput"></div>
     </section>
 
+    <section id="view-builder" class="view">
+      <div class="section-heading">
+        <div><h2>CLI Configuration Builder</h2></div>
+      </div>
+      <div id="builderWorkspace"></div>
+    </section>
+
     <section id="view-sources" class="view">
       <div class="section-heading">
         <div><h2>Sources & Evidence</h2><p>Packet Tracer behavior is prioritized for matching. Cisco official sources are preferred; PT-specific community sources are explicitly labelled by tier.</p></div>
@@ -190,6 +198,8 @@
   </footer>
 
   <script src="data/catalogue-data.js"></script>
+  <script src="js/config-builder.js"></script>
+  <script src="js/builder-ui.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

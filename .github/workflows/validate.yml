@@ -20,7 +20,7 @@ jobs:
           node-version: '22'
       - name: Check committed generated data
         run: python tests/validate_generated_data.py
-      - name: Rebuild and validate catalogue
+      - name: Rebuild and validate catalogue and CLI builder
         run: sh tools/rebuild.sh
       - name: Confirm exact browser bundle is committed
         run: git diff --exit-code -- data/catalogue-data.js

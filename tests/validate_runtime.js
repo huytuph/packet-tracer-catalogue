@@ -166,7 +166,7 @@ function boot(db = catalogue, options = {}) {
     getItem(key) { if (options.deniedStorage) throw new Error('Storage unavailable'); return storage.get(key) ?? null; },
     setItem(key, value) { if (options.deniedStorage) throw new Error('Storage unavailable'); storage.set(key, String(value)); }
   };
-  const context = vm.createContext({window: {PT_CATALOGUE: db, localStorage, scrollTo() {}}, document, Intl});
+  const context = vm.createContext({window: {PT_CATALOGUE: db, PTBuilderUI: options.builder, localStorage, scrollTo() {}}, document, Intl});
   vm.runInContext(app, context, {filename: 'js/app.js'});
   const get = id => {
     assert(nodes.has(id), 'Unknown test ID ' + id);
@@ -184,8 +184,8 @@ function boot(db = catalogue, options = {}) {
   const emit = (id, type = 'click') => dispatch(get(id), type);
   const version = major => { get('versionFilter').value = major; emit('versionFilter', 'change'); };
   const select = (id, value) => { get(id).value = value; emit(id, 'change'); };
-  const clickData = (key, value) => {
-    const target = makeNode('', 'button', `data-${key}="${value}"`);
+  const clickData = (key, value, extraAttributes = '') => {
+    const target = makeNode('', 'button', `data-${key}="${value}" ${extraAttributes}`);
     target.region = key === 'close-modal' ? null : background[2];
     target.focus(); dispatch(target, 'click'); return target;
   };
@@ -679,6 +679,80 @@ check('all module lookups and connection pairs render in All and each version', 
       ui.select('moduleSelect', String(module.module_id));
       balanced(ui.get('moduleDevices').innerHTML);
     }
+  }
+});
+
+check('builder initialization connects version, navigation and count callbacks', () => {
+  let configuration, initializations = 0, versionChanges = 0;
+  const builder = {
+    init(options) { configuration = options; initializations++; },
+    versionChanged() { versionChanges++; }
+  };
+  const ui = boot(catalogue, {saved: '8', builder});
+  assert.equal(initializations, 1);
+  assert.equal(configuration.db, catalogue);
+  assert.equal(configuration.getVersion(), '8');
+  configuration.onCountChange(7);
+  assert.equal(ui.get('builderCount').textContent, '7');
+  ui.version('7');
+  assert.equal(configuration.getVersion(), '7');
+  assert.equal(versionChanges, 1);
+  configuration.onVersionChange('9');
+  assert.equal(ui.get('versionFilter').value, '9');
+  assert.equal(configuration.getVersion(), '9');
+  assert.equal(versionChanges, 2);
+  configuration.onOpenBuilder();
+  assert(ui.get('view-builder').classes.has('active'));
+  assert.equal(ui.views.filter(view => view.classes.has('active')).length, 1);
+  assert(ui.tabs.find(tab => tab.dataset.view === 'builder').classes.has('active'));
+});
+
+check('selection delegation uses numeric identities and success-only focused feedback', () => {
+  const calls = [];
+  let accepted = true;
+  const builder = {
+    init() {},
+    addDevice(id) { calls.push(['device', id]); return accepted ? 'i-1' : null; },
+    addModule(id, deviceId) { calls.push(['part', id, deviceId]); return accepted ? 'p-1' : null; }
+  };
+  const ui = boot(catalogue, {builder});
+  const deviceButton = ui.clickData('select-device', '0005');
+  assert.deepEqual(calls.pop(), ['device', 5]);
+  assert.match(deviceButton.innerHTML, /Added - add another/);
+  assert.equal(deviceButton.getAttribute('aria-label'), 'Added to selected components. Add another.');
+  assert.equal(ui.document.activeElement, deviceButton);
+  const partButton = ui.clickData('select-module', '0007', 'data-for-device-id="0012"');
+  assert.deepEqual(calls.pop(), ['part', 7, 12]);
+  assert.match(partButton.innerHTML, /Added - add another/);
+  assert.equal(ui.document.activeElement, partButton);
+  ui.clickData('select-module', '7');
+  assert.deepEqual(calls.pop(), ['part', 7, undefined]);
+  accepted = false;
+  for (const key of ['select-device', 'select-module']) {
+    const rejected = ui.clickData(key, '5');
+    assert.equal(rejected.innerHTML, '');
+    assert.equal(rejected.getAttribute('aria-label'), null);
+    assert.equal(ui.document.activeElement, rejected);
+  }
+});
+
+check('every module selection button carries the actual 1941 device identity', () => {
+  const model = catalogue.devices.find(device => device.pt_name === '1941');
+  assert(model && model.modules.length > 1, '1941 must exercise multiple module cards');
+  const ui = boot();
+  for (const major of ['', ...families]) {
+    ui.version(major);
+    const expected = major ? model.version_profiles[major].modules.length : model.modules.length;
+    ui.select('moduleDeviceSelect', String(model.device_id));
+    const lookupButtons = [...ui.get('deviceModules').innerHTML.matchAll(/<button\b([^>]*data-select-module="[^"]+"[^>]*)>/g)];
+    assert.equal(lookupButtons.length, expected, (major || 'All') + ' lookup');
+    ui.clickData('device-id', model.device_id);
+    const modalButtons = [...ui.get('modalContent').innerHTML.matchAll(/<button\b([^>]*data-select-module="[^"]+"[^>]*)>/g)];
+    assert.equal(modalButtons.length, expected, (major || 'All') + ' modal');
+    for (const match of [...lookupButtons, ...modalButtons]) {
+      assert.equal(attributes(match[1])['data-for-device-id'], String(model.device_id), (major || 'All') + ' module owner');
+    }
+    ui.clickData('close-modal', '');
   }
 });
 

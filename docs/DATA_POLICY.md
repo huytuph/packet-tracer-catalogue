@@ -82,3 +82,17 @@ The catalogue records source links, factual summaries and original evidence note
 ## Connection guidance
 
 Cable suggestions are conventional Packet Tracer networking guidance. Auto-MDIX and simulation-version behaviour may allow an alternate copper cable in some cases. Connection results should therefore be read together with their notes.
+
+## Generated CLI guidance
+
+The CLI builder produces configuration text from a selected device, version context and supplied settings. Its command templates are documentation-supported guidance, not evidence that the output has been executed successfully in every Packet Tracer release. Device availability, capability verification and command-template verification remain separate claims.
+
+Verify build-critical commands in the exact installed Packet Tracer release before applying them. A passing generator or UI test checks application behavior, not simulator acceptance; an exact-release runtime test is required before calling generated commands runtime-verified.
+
+Selected devices and modules form a planning list. Selection does not install physical modules, establish module interface names, cable a topology or send commands to Packet Tracer. `.txt` exports contain CLI text; `.cfg` exports contain configuration-only text. Neither export is a `.pkt` topology file.
+
+## Local selection data
+
+When available, browser `localStorage` retains the version preference, selected devices/parts and configuration drafts. The app does not upload this data; clipboard copying and file exports occur only through user actions. Clearing the selection overwrites the saved selection with an empty list. If storage is unavailable or saving fails, the current session remains usable.
+
+The builder has no credential fields and does not deploy commands to Packet Tracer or remote devices.

@@ -14,7 +14,10 @@ BUNDLE_PATH = ROOT / "data" / "catalogue-data.js"
 VERSION_EVIDENCE_PATH = ROOT / "data" / "version-evidence.json"
 INDEX_PATH = ROOT / "index.html"
 APP_JS = ROOT / "js" / "app.js"
+RUNTIME_JS = (ROOT / "js" / "config-builder.js", ROOT / "js" / "builder-ui.js", APP_JS)
 CSS_PATH = ROOT / "css" / "app.css"
+ICON_DIR = ROOT / "assets" / "icons"
+RUNTIME_ICONS = ("check", "copy", "download", "minus", "package", "plus", "shopping-cart", "terminal", "trash", "x")
 
 FAILURES: list[str] = []
 
@@ -274,13 +277,35 @@ def validate_offline_runtime() -> None:
     check('href="css/app.css"' in index, "index.html must use bundled local CSS")
     check('src="data/catalogue-data.js"' in index, "index.html must load bundled catalogue data")
     check('src="js/app.js"' in index, "index.html must load bundled application JS")
+    for path in RUNTIME_JS:
+        relative = path.relative_to(ROOT).as_posix()
+        check(path.exists(), f"Runtime script is missing: {relative}")
+        check(f'src="{relative}"' in index, f"index.html must load bundled {relative}")
+
+    script_sources = re.findall(r"<script[^>]+src=['\"]([^'\"]+)['\"]", index, flags=re.I)
+    expected_scripts = ['data/catalogue-data.js'] + [path.relative_to(ROOT).as_posix() for path in RUNTIME_JS]
+    check(script_sources == expected_scripts, "Runtime scripts must load catalogue data, builder engine, builder UI and app in order")
 
     external_runtime = re.findall(r"<(?:script|link)[^>]+(?:src|href)=['\"]https?://", index, flags=re.I)
     check(not external_runtime, "index.html contains external runtime CSS/JS dependencies")
-    check("fetch(" not in app, "Runtime app.js must not require fetch() for local data")
-    check("XMLHttpRequest" not in app, "Runtime app.js must not require XMLHttpRequest")
-    check("import(" not in app and " from '" not in app and ' from "' not in app, "Runtime app.js must not require JS module loading")
+    for path in RUNTIME_JS:
+        if not path.exists():
+            continue
+        source = path.read_text(encoding="utf-8")
+        check("fetch(" not in source, f"Runtime {path.name} must not require fetch() for local data")
+        check("XMLHttpRequest" not in source, f"Runtime {path.name} must not require XMLHttpRequest")
+        check("import(" not in source and " from '" not in source and ' from "' not in source,
+              f"Runtime {path.name} must not require JS module loading")
     check("http://" not in css and "https://" not in css, "CSS contains an external URL dependency")
+
+    image_sources = re.findall(r"<img[^>]+src=['\"]([^'\"]+)['\"]", index, flags=re.I)
+    for source in image_sources:
+        check(not re.match(r"(?:[a-z][a-z0-9+.-]*:)?//", source, flags=re.I),
+              f"Runtime image must be bundled locally: {source}")
+        check((ROOT / source).is_file(), f"Bundled runtime image is missing: {source}")
+    for name in RUNTIME_ICONS:
+        check((ICON_DIR / f"{name}.svg").is_file(), f"Bundled runtime icon is missing: {name}.svg")
+    check((ICON_DIR / "LICENSE").is_file(), "Bundled icon license is missing")
 
     # Catch simple runtime breakage where app.js references a missing DOM id.
     html_ids = set(re.findall(r'id=[\"\']([^\"\']+)[\"\']', index))

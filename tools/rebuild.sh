@@ -9,7 +9,11 @@ python3 "$ROOT/tests/test_generated_data.py"
 python3 "$ROOT/tests/validate_generated_data.py"
 if command -v node >/dev/null 2>&1; then
   node --check "$ROOT/js/app.js"
+  node --check "$ROOT/js/config-builder.js"
+  node --check "$ROOT/js/builder-ui.js"
   node --check "$ROOT/data/catalogue-data.js"
   node "$ROOT/tests/validate_runtime.js"
+  node "$ROOT/tests/validate_config_builder.js"
+  node "$ROOT/tests/validate_builder_ui.js"
 fi
 printf '\nRebuild complete. Open %s/index.html\n' "$ROOT"

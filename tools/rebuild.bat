@@ -21,8 +21,12 @@ if errorlevel 1 (
 where node >nul 2>nul
 if %errorlevel%==0 (
   node --check "%ROOT%\js\app.js" || exit /b 1
+  node --check "%ROOT%\js\config-builder.js" || exit /b 1
+  node --check "%ROOT%\js\builder-ui.js" || exit /b 1
   node --check "%ROOT%\data\catalogue-data.js" || exit /b 1
   node "%ROOT%\tests\validate_runtime.js" || exit /b 1
+  node "%ROOT%\tests\validate_config_builder.js" || exit /b 1
+  node "%ROOT%\tests\validate_builder_ui.js" || exit /b 1
 )
 echo.
 echo Rebuild complete. Open %ROOT%\index.html
