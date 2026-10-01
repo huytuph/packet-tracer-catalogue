@@ -1,0 +1,1520 @@
+{
+  "sources": [
+    {
+      "key": "pt63_bundled_help_archive",
+      "url": "https://archive.org/download/PacketTracer63Linux/PacketTracer63_linux.tar.gz",
+      "title": "Cisco Packet Tracer 6.3 bundled help: Devices and Modules",
+      "publisher": "Cisco Networking Academy (Internet Archive distribution mirror)",
+      "source_type": "Archived Packet Tracer bundled help",
+      "publication_date": null,
+      "source_tier": 1,
+      "notes": "Read only PacketTracer63/help/default/devicesAndModules_{routers,switches,others}.htm in memory; no installation or executable launch. SHA512 cd66b6821e9b2fe93e77c45788ff4189ff39af75ad8f492168751c19dc872c501255a44d2324e9506717c839884ca2cbcb9f2e03c47c27e4e5ff2eeda7842ed9 matches historical AUR packaging at https://bbs.archlinux.org/viewtopic.php?id=210879 and https://gist.github.com/z3ntu/f7eaf47c73d23bec430b. Documents are Cisco-authored; mirror is not Cisco-operated. Presence documents 6.3 only, not every 6.x minor."
+    },
+    {
+      "key": "pt731_bundled_help_archive",
+      "url": "https://archive.org/download/packet-tracer-731-amd-64_202008/PacketTracer_731_amd64.deb",
+      "title": "Cisco Packet Tracer 7.3.1 bundled help: Devices and Modules and What's New",
+      "publisher": "Cisco Networking Academy (Internet Archive distribution mirror)",
+      "source_type": "Archived Packet Tracer bundled help",
+      "publication_date": null,
+      "source_tier": 1,
+      "notes": "Read only opt/pt/help/default/devicesAndModules_{routers,switches,others}.htm and whatsNew.htm from the Debian package in memory; no installation or executable launch. SHA512 3fe369ef8cd1e0429422e58ce42d1b4288143e49cdf06e1c0bb15cb0b75a0d0fe0fcdaccdf244cb466cb700644ea8d792672f5a8caef3d307d5c071a97d5d42d matches historical packaging at https://manjariando.com.br/arquivados/packettracer/. Archive upload 2020-08-23 is not publication date. Cisco-authored documents; non-Cisco mirror. Presence documents 7.3.1 only, not every 7.x minor."
+    },
+    {
+      "key": "pt70_faq_mirror",
+      "url": "https://manualzz.com/doc/25924990/cisco-routers-user-manual",
+      "title": "Cisco Packet Tracer 7.0 Frequently Asked Questions",
+      "publisher": "Cisco Networking Academy (Manualzz mirror)",
+      "source_type": "Cisco-authored release FAQ",
+      "publication_date": "2016-06-16",
+      "source_tier": 1,
+      "notes": "Document title and Last Updated date are in the mirrored Cisco Public Information content. Q5 explicitly identifies 829,1240 and IE2000 as New Devices. Earlier-family absence is an inference from introduction, not a runtime observation."
+    },
+    {
+      "key": "pt71_program_updates_mirror",
+      "url": "https://www.it-bildungsnetz.de/fileadmin/media/Akademietag_2017/Meuser_20170922-Program_Updates_Sept_2017.pdf",
+      "title": "Cisco Networking Academy September 2017 Program Updates: Packet Tracer 7.1 Overview",
+      "publisher": "Cisco Networking Academy (IT-Bildungsnetz mirror)",
+      "source_type": "Cisco-authored program update presentation",
+      "publication_date": "2017-09",
+      "source_tier": 1,
+      "notes": "Cisco copyright presentation, Packet Tracer 7.1 Overview slide 18 explicitly describes CT2504 WLC and 3702 APs as new devices; release available August 2017. Earlier-family absence is inferred from introduction. CT2504 and 3702 map to catalogue WLC-2504 and 3702i."
+    },
+    {
+      "key": "pt722_new_devices_mirror",
+      "url": "https://raw.githubusercontent.com/Yue-plus/cisco_packet_tracer_help/master/default/whatsNew.htm",
+      "title": "Cisco Packet Tracer 7.2.2 bundled help: What's New",
+      "publisher": "Cisco Networking Academy (Yue-plus help mirror)",
+      "source_type": "Mirrored Packet Tracer bundled help",
+      "publication_date": null,
+      "source_tier": 1,
+      "notes": "Original English Cisco help mirrored at https://github.com/Yue-plus/cisco_packet_tracer_help. README names the Cisco Packet Tracer 7.2.2 install directory and default/menu.htm links PacketTracer722v10.pdf. New Devices lists Meraki Security Appliance, Home Router and ASA5506. Corresponding help identifies Meraki-MX65W. ASA5506 is the help label for catalogue ASA5506-X. Exact original introduction minor is not asserted."
+    },
+    {
+      "key": "pt90_new_devices_official",
+      "url": "https://tutorials.ptnetacad.net/help/default/whatsNew.htm",
+      "title": "Cisco Packet Tracer help: What's New in version 9.0",
+      "publisher": "Cisco Networking Academy",
+      "source_type": "Official Packet Tracer help",
+      "publication_date": null,
+      "source_tier": 1,
+      "notes": "Explicitly calls C8200 a new router model and lists IR1101,IR8340,IE3400 and ISA3000 under New in version9.0. Earlier-family absence is an inference from introduction, not an observation of old runtimes."
+    },
+    {
+      "key": "pt9_routers_official",
+      "url": "https://tutorials.ptnetacad.net/help/default/devicesAndModules_routers.htm",
+      "title": "Devices and Modules: Routers",
+      "publisher": "Cisco Networking Academy",
+      "source_type": "Packet Tracer built-in help",
+      "publication_date": null,
+      "source_tier": 1,
+      "notes": "Online 9.0 help corroborated against C:/Program Files/Cisco Packet Tracer 9.0.1/help/default/devicesAndModules_routers.htm. Installed documentation identifies the exact observed package release as 9.0.1; no simulator behavior was executed."
+    },
+    {
+      "key": "pt9_switches_official",
+      "url": "https://tutorials.ptnetacad.net/help/default/devicesAndModules_switches.htm",
+      "title": "Devices and Modules: Switches",
+      "publisher": "Cisco Networking Academy",
+      "source_type": "Packet Tracer built-in help",
+      "publication_date": null,
+      "source_tier": 1,
+      "notes": "Online 9.0 help corroborated against the identically named installed 9.0.1 help page. Category inventory is not treated as exhaustive evidence of absence."
+    },
+    {
+      "key": "pt9_others_official",
+      "url": "https://tutorials.ptnetacad.net/help/default/devicesAndModules_others.htm",
+      "title": "Devices and Modules: Other Devices",
+      "publisher": "Cisco Networking Academy",
+      "source_type": "Packet Tracer built-in help",
+      "publication_date": null,
+      "source_tier": 1,
+      "notes": "Online 9.0 help corroborated against the identically named installed 9.0.1 help page. The ASA heading is ASA 5506, without the -X suffix."
+    },
+    {
+      "key": "pt9_new_official",
+      "url": "https://tutorials.ptnetacad.net/help/default/whatsNew.htm",
+      "title": "What's New in Cisco Packet Tracer 9.0",
+      "publisher": "Cisco Networking Academy",
+      "source_type": "Release help",
+      "publication_date": null,
+      "source_tier": 1,
+      "notes": "Explicit New in version 9.0 list includes IR1101, IR8340, PT8200, IE3400 and ISA3000. The introduction describes the C8200 router addition and the linked inventory calls it PT8200. Earlier-major absence is an inference, not a directly observed 8.x inventory."
+    },
+    {
+      "key": "pt8_asa_user_observation",
+      "url": "https://community.cisco.com/t5/online-tools-and-resources/enable-dhcpd-in-asa5506-x-firewall/td-p/5344387",
+      "title": "enable dhcpd in ASA5506-X firewall",
+      "publisher": "Cisco Community (user unvacs and replies)",
+      "source_type": "Firsthand simulator observation",
+      "publication_date": "2025-11-04",
+      "source_tier": 2,
+      "notes": "Original reporter explicitly names ASA5506-X in Packet Tracer 9.0 and says the same DHCP configuration works in 8.2. A reply explicitly identifies 9.0.0 and copying an ASA from PT-8. User-generated firsthand evidence, not an official supported-device inventory."
+    },
+    {
+      "key": "pt8_bundled_help",
+      "url": "https://github.com/marcelobaptista/packettracer/blob/2e765ebf78b73cdd0ff6b00643255fed59ad9256/Packet_Tracer822_amd64_signed.deb",
+      "title": "Cisco Packet Tracer 8.2.2 bundled device inventory",
+      "publisher": "Cisco Networking Academy (Cisco archive preserved by marcelobaptista)",
+      "source_type": "Cisco distribution bundled help",
+      "publication_date": null,
+      "source_tier": 1,
+      "notes": "Cisco signed Debian package read in memory without installation or execution. control Version: 8.2.2; Maintainer: Packet Tracer Support <packettracersupport@external.cisco.com>; ar includes _gpgorigin (signature presence, not cryptographically authenticated here). Exact file SHA256 6cd2b8891df92d2cad8b6fdc47480fc089de085c4f3fe95eb80d5450a2a7f72d; SHA512 55835357b01449150f5c962d852f2921d4e39f697297cb34471b8cc83a91bced6c31703cc28a90e61db7a9a32e5534de4f11e5c4f6735f400456d25a013fadde matches independently maintained AUR PKGBUILD at commit 400c3e5dce781938bea6b5131d26effed7f7c3cc (https://aur.archlinux.org/cgit/aur.git/tree/PKGBUILD?h=packettracer&id=400c3e5dce781938bea6b5131d26effed7f7c3cc). Reviewed opt/pt/help/default/devicesAndModules_routers.htm, devicesAndModules_switches.htm, devicesAndModules_others.htm and whatsNew.htm. Exact empty-switch label and 5506-X string occur in packaged binary; SpecificArtificialSwitchEmpty_40x40.png is present as ComponentBox asset. These resources alone do not prove active palette behavior."
+    }
+  ],
+  "devices": [
+    {
+      "pt_name": "1841",
+      "versions": {
+        "6": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt63_bundled_help_archive",
+          "observed_release": "6.3",
+          "evidence_kind": "documentation",
+          "notes": "Router heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Router heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_routers.htm lists 1841. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_routers_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists 1841; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "2811",
+      "versions": {
+        "6": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt63_bundled_help_archive",
+          "observed_release": "6.3",
+          "evidence_kind": "documentation",
+          "notes": "Router heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Router heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_routers.htm lists 2811. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_routers_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists 2811; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "1941",
+      "versions": {
+        "6": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt63_bundled_help_archive",
+          "observed_release": "6.3",
+          "evidence_kind": "documentation",
+          "notes": "Router heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Router heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_routers.htm lists 1941. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_routers_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists 1941; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "2901",
+      "versions": {
+        "6": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt63_bundled_help_archive",
+          "observed_release": "6.3",
+          "evidence_kind": "documentation",
+          "notes": "Router heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Router heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_routers.htm lists 2901. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_routers_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists 2901; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "2911",
+      "versions": {
+        "6": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt63_bundled_help_archive",
+          "observed_release": "6.3",
+          "evidence_kind": "documentation",
+          "notes": "Router heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Router heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_routers.htm lists 2911. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_routers_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists 2911; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "ISR4321",
+      "versions": {
+        "6": {
+          "available": null,
+          "verification_status": "Unknown",
+          "source_key": null,
+          "observed_release": null,
+          "evidence_kind": "unverified",
+          "notes": "No direct 6.x evidence; omission from 6.3 help alone is insufficient for absence.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "ISR4321 router heading.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_routers.htm lists ISR4321. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_routers_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists ISR4321; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "ISR4331",
+      "versions": {
+        "6": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "inference",
+          "notes": "What's New identifies 4331 as a new device; inferred absent before 7.x.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "ISR4331 router heading.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_routers.htm lists ISR4331. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_routers_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists ISR4331; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "819",
+      "versions": {
+        "6": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt63_bundled_help_archive",
+          "observed_release": "6.3",
+          "evidence_kind": "documentation",
+          "notes": "Router heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Router heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_routers.htm lists 819. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_routers_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists 819; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "829",
+      "versions": {
+        "6": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt70_faq_mirror",
+          "observed_release": "7.0",
+          "evidence_kind": "inference",
+          "notes": "Q5 lists 829 under New Devices; inferred absent in 6.x.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Router heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_routers.htm lists 829. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_routers_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists 829; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "CGR1240",
+      "versions": {
+        "6": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt70_faq_mirror",
+          "observed_release": "7.0",
+          "evidence_kind": "inference",
+          "notes": "Q5 lists 1240 under New Devices; inferred absent in 6.x.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "CGR1240 router heading.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_routers.htm lists CGR1240. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_routers_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists CGR1240; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "C8200",
+      "versions": {
+        "6": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt90_new_devices_official",
+          "observed_release": "9.0",
+          "evidence_kind": "inference",
+          "notes": "New C8200 model in 9.0; earlier absence inferred.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt90_new_devices_official",
+          "observed_release": "9.0",
+          "evidence_kind": "inference",
+          "notes": "New C8200 model in 9.0; earlier absence inferred.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt9_new_official",
+          "observed_release": "9.0",
+          "evidence_kind": "inference",
+          "notes": "Listed as new in 9.0; absence from the 8.x family is inferred from the stated introduction, not observed in an 8.x installation. The 8.2.2 bundled inventory was also inspected; omission is corroboration only, not exhaustive absence proof.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_routers_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official 9.0 introduction calls the added router Cisco C8200; its New in version 9.0 table and linked installed 9.0.1 router inventory call it PT8200. Catalogue C8200 maps to PT8200.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "IR1101",
+      "versions": {
+        "6": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt90_new_devices_official",
+          "observed_release": "9.0",
+          "evidence_kind": "inference",
+          "notes": "New-device table in 9.0; earlier absence inferred.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt90_new_devices_official",
+          "observed_release": "9.0",
+          "evidence_kind": "inference",
+          "notes": "New-device table in 9.0; earlier absence inferred.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt9_new_official",
+          "observed_release": "9.0",
+          "evidence_kind": "inference",
+          "notes": "Listed as new in 9.0; absence from the 8.x family is inferred from the stated introduction, not observed in an 8.x installation. The 8.2.2 bundled inventory was also inspected; omission is corroboration only, not exhaustive absence proof.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_routers_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 inventory lists IR1101. Bundled help documents four FastEthernet ports, one RJ45/SFP combo GigabitEthernet interface (counted once) and two cellular-module slots. The original six-GE/one-PIM seed was corrected; port verification remains Partial pending runtime observation.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "IR8340",
+      "versions": {
+        "6": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt90_new_devices_official",
+          "observed_release": "9.0",
+          "evidence_kind": "inference",
+          "notes": "New-device table in 9.0; earlier absence inferred.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt90_new_devices_official",
+          "observed_release": "9.0",
+          "evidence_kind": "inference",
+          "notes": "New-device table in 9.0; earlier absence inferred.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt9_new_official",
+          "observed_release": "9.0",
+          "evidence_kind": "inference",
+          "notes": "Listed as new in 9.0; absence from the 8.x family is inferred from the stated introduction, not observed in an 8.x installation. The 8.2.2 bundled inventory was also inspected; omission is corroboration only, not exhaustive absence proof.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_routers_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 inventory lists IR8340. Bundled help documents LAN four RJ45, four RJ45/SFP combo and four dedicated SFP interfaces, plus two WAN combo interfaces, two NIM slots and two PIM slots. The seed now separates these groups and counts each combo once; port verification remains Partial pending runtime observation.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "Router-PT",
+      "versions": {
+        "6": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt63_bundled_help_archive",
+          "observed_release": "6.3",
+          "evidence_kind": "documentation",
+          "notes": "Router heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Router heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_routers.htm lists Router-PT. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_routers_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists Router-PT; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "2950-24",
+      "versions": {
+        "6": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt63_bundled_help_archive",
+          "observed_release": "6.3",
+          "evidence_kind": "documentation",
+          "notes": "Switch heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Switch heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_switches.htm lists 2950-24. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_switches_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists 2950-24; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "2950T-24",
+      "versions": {
+        "6": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt63_bundled_help_archive",
+          "observed_release": "6.3",
+          "evidence_kind": "documentation",
+          "notes": "Switch heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Switch heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_switches.htm lists 2950T-24. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_switches_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists 2950T-24; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "2960-24TT",
+      "versions": {
+        "6": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt63_bundled_help_archive",
+          "observed_release": "6.3",
+          "evidence_kind": "documentation",
+          "notes": "Switch heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Switch heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_switches.htm lists 2960-24TT. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_switches_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists 2960-24TT; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "3560-24PS",
+      "versions": {
+        "6": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt63_bundled_help_archive",
+          "observed_release": "6.3",
+          "evidence_kind": "documentation",
+          "notes": "Switch heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Switch heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_switches.htm lists 3560-24PS. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_switches_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists 3560-24PS; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "3650-24PS",
+      "versions": {
+        "6": {
+          "available": null,
+          "verification_status": "Unknown",
+          "source_key": null,
+          "observed_release": null,
+          "evidence_kind": "unverified",
+          "notes": "No direct 6.x evidence; omission from 6.3 help alone is insufficient for absence.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Switch heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_switches.htm lists 3650-24PS. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_switches_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists 3650-24PS; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "IE-2000",
+      "versions": {
+        "6": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt70_faq_mirror",
+          "observed_release": "7.0",
+          "evidence_kind": "inference",
+          "notes": "Q5 lists IE2000 under New Devices; inferred absent in 6.x.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Industrial Switch IE2000 heading.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_switches.htm lists IE2000. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_switches_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists IE2000; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "IE-3400",
+      "versions": {
+        "6": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt90_new_devices_official",
+          "observed_release": "9.0",
+          "evidence_kind": "inference",
+          "notes": "New-device table in 9.0; earlier absence inferred.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt90_new_devices_official",
+          "observed_release": "9.0",
+          "evidence_kind": "inference",
+          "notes": "New-device table in 9.0; earlier absence inferred.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt9_new_official",
+          "observed_release": "9.0",
+          "evidence_kind": "inference",
+          "notes": "Listed as new in 9.0; absence from the 8.x family is inferred from the stated introduction, not observed in an 8.x installation. The 8.2.2 bundled inventory was also inspected; omission is corroboration only, not exhaustive absence proof.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_switches_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists IE-3400; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "Switch-PT",
+      "versions": {
+        "6": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt63_bundled_help_archive",
+          "observed_release": "6.3",
+          "evidence_kind": "documentation",
+          "notes": "Switch heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Switch heading in bundled help.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_switches.htm lists Switch-PT. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_switches_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists Switch-PT; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "Switch-PT-Empty",
+      "versions": {
+        "6": {
+          "available": null,
+          "verification_status": "Unknown",
+          "source_key": null,
+          "observed_release": null,
+          "evidence_kind": "unverified",
+          "notes": "Empty variant not directly documented; do not equate ordinary Switch-PT with this variant.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": null,
+          "verification_status": "Unknown",
+          "source_key": null,
+          "observed_release": null,
+          "evidence_kind": "unverified",
+          "notes": "Empty variant not directly documented; do not equate ordinary Switch-PT with this variant.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": null,
+          "verification_status": "Unknown",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "unverified",
+          "notes": "Not named in inspected 8.2.2 help inventory. Exact Switch-PT-Empty label and a dedicated empty-switch ComponentBox icon occur in the archive, but no runtime palette observation establishes availability; omission does not imply absence.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": null,
+          "verification_status": "Unknown",
+          "source_key": null,
+          "observed_release": null,
+          "evidence_kind": "unverified",
+          "notes": "Exact empty-switch record was not found in the examined official 9.0.1 help inventory or targeted help text search. Omission is not proof of absence; no installed palette observation was performed. Installed 9.0.1 binary also contains the exact model label and dedicated ComponentBox palette icon; active availability remains unobserved.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "ASA5505",
+      "versions": {
+        "6": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt63_bundled_help_archive",
+          "observed_release": "6.3",
+          "evidence_kind": "documentation",
+          "notes": "ASA5505 heading in other devices.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "ASA5505 heading in other devices.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_others.htm lists ASA 5505. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_others_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists ASA 5505; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "ASA5506-X",
+      "versions": {
+        "6": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt722_new_devices_mirror",
+          "observed_release": "7.2.2",
+          "evidence_kind": "inference",
+          "notes": "New Devices names ASA5506, the help alias; earlier absence inferred.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Partial",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "inference",
+          "notes": "Cisco 7.3.1 inventory lists ASA 5506, without the -X suffix. Mapping to catalogue ASA5506-X is inferred, as for 8.x and 9.x; exact-name palette observation remains unperformed.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Partial",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "inference",
+          "notes": "Cisco 8.2.2 bundled inventory lists ASA 5506, without -X. Packaged binary includes a 5506-X string, and a firsthand community report names ASA5506-X in 8.2. Exact-name mapping remains inferred without runtime palette observation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Partial",
+          "source_key": "pt9_others_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "inference",
+          "notes": "Official installed 9.0.1 inventory lists ASA 5506, without -X. Mapping to catalogue ASA5506-X is inferred; firsthand Cisco Community report independently names ASA5506-X in 9.0/9.0.0. Exact-name palette observation remains unperformed.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "MX65W",
+      "versions": {
+        "6": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt722_new_devices_mirror",
+          "observed_release": "7.2.2",
+          "evidence_kind": "inference",
+          "notes": "Meraki appliance identified as a new device; earlier absence inferred.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Meraki-MX65W heading in other devices.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_others.htm lists Meraki-MX65W. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_others_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists Meraki-MX65W; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "ISA3000",
+      "versions": {
+        "6": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt90_new_devices_official",
+          "observed_release": "9.0",
+          "evidence_kind": "inference",
+          "notes": "New-device table in 9.0; earlier absence inferred.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt90_new_devices_official",
+          "observed_release": "9.0",
+          "evidence_kind": "inference",
+          "notes": "New-device table in 9.0; earlier absence inferred.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt9_new_official",
+          "observed_release": "9.0",
+          "evidence_kind": "inference",
+          "notes": "Listed as new in 9.0; absence from the 8.x family is inferred from the stated introduction, not observed in an 8.x installation. The 8.2.2 bundled inventory was also inspected; omission is corroboration only, not exhaustive absence proof.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_others_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists ISA-3000; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "AccessPoint-PT",
+      "versions": {
+        "6": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt63_bundled_help_archive",
+          "observed_release": "6.3",
+          "evidence_kind": "documentation",
+          "notes": "Heading in other devices.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Heading in other devices.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_others.htm lists AccessPoint-PT. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_others_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists AccessPoint-PT; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "LAP-PT",
+      "versions": {
+        "6": {
+          "available": null,
+          "verification_status": "Unknown",
+          "source_key": null,
+          "observed_release": null,
+          "evidence_kind": "unverified",
+          "notes": "No direct 6.x evidence; new 3702 evidence does not prove generic LAP introduction.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "LAP-PT heading in other devices.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_others.htm lists LAP-PT. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_others_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists LAP-PT; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "3702i",
+      "versions": {
+        "6": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt71_program_updates_mirror",
+          "observed_release": "7.1",
+          "evidence_kind": "inference",
+          "notes": "Cisco 7.1 overview calls 3702 APs new; earlier absence inferred.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "3702i heading in other devices.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_others.htm lists 3702i. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_others_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists 3702i; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "WLC-2504",
+      "versions": {
+        "6": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt71_program_updates_mirror",
+          "observed_release": "7.1",
+          "evidence_kind": "inference",
+          "notes": "Cisco 7.1 overview calls CT2504 WLC new; earlier absence inferred.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "WLC-2504 heading in other devices.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_others.htm lists WLC-2504. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_others_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists WLC-2504; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "WLC-3504",
+      "versions": {
+        "6": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "inference",
+          "notes": "What's New identifies WLC3504 as new; earlier absence inferred.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "WLC-3504 heading in other devices.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_others.htm lists WLC-3504. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_others_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists WLC-3504; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "HomeRouter",
+      "versions": {
+        "6": {
+          "available": false,
+          "verification_status": "Partial",
+          "source_key": "pt722_new_devices_mirror",
+          "observed_release": "7.2.2",
+          "evidence_kind": "inference",
+          "notes": "Home Router identified as a new device; earlier absence inferred.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Home Router heading in other devices.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_others.htm lists Home Router. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_others_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists Home Router; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    },
+    {
+      "pt_name": "Cloud-PT",
+      "versions": {
+        "6": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt63_bundled_help_archive",
+          "observed_release": "6.3",
+          "evidence_kind": "documentation",
+          "notes": "Heading in other devices.",
+          "checked_date": "2026-10-01"
+        },
+        "7": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt731_bundled_help_archive",
+          "observed_release": "7.3.1",
+          "evidence_kind": "documentation",
+          "notes": "Heading in other devices.",
+          "checked_date": "2026-10-01"
+        },
+        "8": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt8_bundled_help",
+          "observed_release": "8.2.2",
+          "evidence_kind": "documentation",
+          "notes": "Cisco 8.2.2 bundled devicesAndModules_others.htm lists Cloud-PT. No forward or backward version extrapolation.",
+          "checked_date": "2026-10-01"
+        },
+        "9": {
+          "available": true,
+          "verification_status": "Verified",
+          "source_key": "pt9_others_official",
+          "observed_release": "9.0.1",
+          "evidence_kind": "documentation",
+          "notes": "Official installed 9.0.1 device inventory lists Cloud-PT; online page corroborates presence.",
+          "checked_date": "2026-10-01"
+        }
+      }
+    }
+  ]
+}

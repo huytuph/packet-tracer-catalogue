@@ -1,0 +1,26 @@
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+
+# Python maintainer artefacts
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# SQLite transient files
+data/*.db-shm
+data/*.db-wal
+data/*.db-journal
+
+# Temporary files
+*.tmp
+*.bak
+*.log
