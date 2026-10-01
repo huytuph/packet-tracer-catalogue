@@ -10,4 +10,76 @@
 @media(max-width:560px){.filters-bar,.form-grid{grid-template-columns:1fr}.app-header{padding:1rem}.match-head{display:block}.tabs{padding:.45rem}.data-table{font-size:.78rem}}
 .header-controls{display:flex;flex-direction:column;align-items:flex-end;gap:.8rem;min-width:220px}.version-field{width:200px}.version-field select{color:var(--text);background:var(--surface)}.version-audit{margin-top:1.5rem}.version-audit h3{margin-bottom:.6rem}.availability-cell{min-width:145px}.availability-cell small{display:block;margin-top:.3rem;color:var(--muted)}.context-note{color:var(--warn);margin:.6rem 0}.empty-state{padding:1rem;color:var(--muted)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}.sort-button{display:flex;align-items:center;gap:.35rem;width:100%;border:0;border-radius:0;background:transparent;padding:0;font-weight:inherit;text-align:left}.sort-button:hover{color:var(--accent-dark)}.sort-button::after{content:"";display:inline-block;width:.7rem;height:1em;text-align:center}th[aria-sort="ascending"] .sort-button::after{content:"\2191"}th[aria-sort="descending"] .sort-button::after{content:"\2193"}
+
+/* Compact groups keep their natural height; dense tables retain their own scroll area. */
+.view.active{display:flex;flex-direction:column;align-items:flex-start}
+.view>*,.panel,.field{min-width:0;max-width:100%}
+.brand-block{min-width:0;max-width:100%}
+.header-controls{min-width:0;max-width:min(26rem,100%)}
+.header-meta{align-self:stretch;min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.section-heading{max-width:75ch}
+.finder-grid,.split-grid,.about-grid{display:flex;flex-wrap:wrap;align-items:flex-start;width:fit-content;max-width:100%}
+.finder-grid>.panel{flex:0 1 32rem;width:32rem}
+.split-grid>.panel{flex:0 1 auto;width:fit-content;max-width:min(36rem,100%)}
+.about-grid>.panel{flex:0 1 auto;width:fit-content;max-width:min(30rem,100%)}
+.panel p{max-width:65ch;overflow-wrap:anywhere}
+.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.field input,.field select,.field textarea{min-width:0;max-width:100%}
+.filters-bar{display:flex;flex-wrap:wrap;align-items:flex-end;width:fit-content;gap:.75rem}
+.filters-bar>.field{flex:0 1 13rem;width:13rem}
+.filters-bar>.search-field{flex-basis:20rem;width:20rem}
+.filters-bar>.field:nth-child(2){flex-basis:17rem;width:17rem}
+.filters-bar>.field:nth-child(3){flex-basis:9rem;width:9rem}
+.filters-bar>.field:nth-child(5){flex-basis:10rem;width:10rem}
+.compare-picker,.module-controls,.connection-controls{width:fit-content;max-width:100%}
+.compare-picker{max-width:min(52rem,100%)}
+.connection-controls{max-width:min(54rem,100%)}
+.compare-picker .field,.module-controls .field,.connection-controls .field{flex:0 1 24rem;width:24rem;min-width:0;max-width:100%}
+.module-controls .field:last-child{flex-basis:15rem;width:15rem}
+.compare-picker .chips{flex-basis:100%;min-width:0}
+.connection-controls .check-line{flex:0 1 16rem;max-width:100%;margin:0}
+.check-line{align-items:flex-start}
+.check-line input,.feature-checks input{flex-shrink:0}
+.feature-checks label{min-width:0;overflow-wrap:anywhere}
+.result-summary,.table-tools{justify-content:flex-start;flex-wrap:wrap;gap:.75rem 1.5rem;width:fit-content}
+.match-list{display:flex;flex-wrap:wrap;align-items:flex-start;width:fit-content;max-width:100%}
+.match-card{flex:0 1 auto;width:fit-content;max-width:min(48rem,100%);min-width:0}
+.match-head,.card-actions{flex-wrap:wrap}
+.match-head>div{min-width:0;max-width:100%}
+.match-head h3,.match-head p,.reason{overflow-wrap:anywhere}
+.reason-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+#compareOutput,#connectionOutput{width:fit-content;max-width:100%;min-width:0}
+#connectionOutput{max-width:min(62rem,100%)}
+.module-card,.connection-card{width:fit-content;max-width:100%;min-width:0;overflow-wrap:anywhere}
+.module-card>div{max-width:65ch}
+.kv{width:fit-content;max-width:100%;grid-template-columns:fit-content(11rem) minmax(0,1fr)}
+.kv dt,.kv dd{min-width:0;overflow-wrap:anywhere}
+.table-wrap{width:fit-content;max-width:100%;min-width:0}
+.data-table{width:auto;max-width:100%}
+.data-table td{overflow-wrap:anywhere}
+.compare-table th:not(:first-child),.compare-table td:not(:first-child){min-width:11rem;max-width:22rem}
+#sourcesBody td:nth-child(3){max-width:38rem}
+.version-audit{width:fit-content;max-width:100%}
+.modal-card{width:fit-content;max-width:min(94vw,1050px);min-width:0}
+.detail-header h2,.detail-header p,.detail-section{overflow-wrap:anywhere}
+.detail-header p,.detail-section>.muted{max-width:70ch}
+.detail-grid{display:flex;flex-wrap:wrap;align-items:flex-start}
+.detail-grid>.detail-section{flex:0 1 auto;width:fit-content;max-width:min(28rem,100%);min-width:0}
+.port-pill,.badge{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.chip{max-width:100%;min-width:0;overflow-wrap:anywhere}
+.chip button{flex-shrink:0}
+
 @media(max-width:900px){.header-controls{align-items:flex-start;margin-top:1rem;min-width:0}.header-controls .header-meta{margin-top:0}.version-field{width:min(100%,260px)}}
+@media(max-width:900px){
+  .finder-grid,.split-grid,.about-grid{flex-direction:column}
+  .finder-grid>.panel{flex-basis:auto}
+  .reason-grid{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .finder-grid,.split-grid,.about-grid,.match-list,.filters-bar,.compare-picker,.module-controls,.connection-controls{width:100%}
+  .finder-grid>.panel,.split-grid>.panel,.about-grid>.panel,.match-card{width:100%;flex-basis:auto}
+  .filters-bar>.field,.filters-bar>.field:nth-child(2),.filters-bar>.field:nth-child(3),.filters-bar>.field:nth-child(5),.compare-picker .field,.module-controls .field,.module-controls .field:last-child,.connection-controls .field{width:100%;flex-basis:100%}
+  .form-grid{grid-template-columns:1fr}
+  .kv{grid-template-columns:fit-content(8rem) minmax(0,1fr)}
+  .detail-grid{flex-direction:column}
+}

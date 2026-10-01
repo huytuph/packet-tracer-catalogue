@@ -68,3 +68,16 @@ Do not introduce runtime dependencies on:
 - browser extensions.
 
 Optional hyperlinks to external Cisco sources are fine; the catalogue itself must remain usable offline.
+
+## Publishing checks
+
+Configure publishing in [Settings > Pages](https://github.com/huytuph/packet-tracer-catalogue/settings/pages): choose **Deploy from a branch**, select **main** and **/(root)**, then save. See GitHub's [publishing-source instructions](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
+
+Keep `index.html` at the repository root and preserve relative asset paths; the same files must work from disk and under the project's GitHub Pages URL.
+
+1. Run the relevant validation before committing; rebuild both generated data files when the seed or evidence changes.
+2. Push the intended updates to the configured publishing branch (`main`).
+3. Check catalogue validation and Pages deployment separately in Actions. The validation workflow does not deploy Pages or gate branch-based publishing.
+4. Smoke-test the published website and a downloaded copy: version selection, finder/search, comparisons, module and connection lookups, device details and keyboard navigation.
+
+Pages serves the generated JavaScript catalogue, not a live database or Python backend. Publishing does not install an offline cache; use the downloaded files for reliable offline access.
