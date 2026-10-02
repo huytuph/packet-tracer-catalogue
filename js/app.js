@@ -49,8 +49,10 @@ function availabilityCell(d,major){
   return `<div class="availability-cell">${availabilityBadge(d,major)}<small>${esc(a.verification_status)}${a.observed_release?' · '+esc(a.observed_release):''}</small>${a.source_url?`<small>${sourceLink(a.source_url,a.source_title,a.source_publisher)}</small>`:''}</div>`;
 }
 function renderVersionAudit(){
-  $('#versionCoverageSummary').textContent=DB.devices.length+' devices · '+(DB.devices.length*majorVersions.length)+' device/version assessments';
-  $('#versionAuditBody').innerHTML=DB.devices.map(d=>`<tr><td><button data-device-id="${d.device_id}">${esc(d.display_name)}</button></td>${majorVersions.map(v=>`<td>${availabilityCell(d,v)}</td>`).join('')}</tr>`).join('');
+  const versions=targetVersion?[targetVersion]:majorVersions;
+  $('#versionCoverageSummary').textContent=DB.devices.length+' devices · '+(DB.devices.length*versions.length)+' device/version assessments';
+  $('#versionAuditHead').innerHTML='<tr><th>Device</th>'+versions.map(v=>`<th>${v}.x</th>`).join('')+'</tr>';
+  $('#versionAuditBody').innerHTML=DB.devices.map(d=>`<tr><td><button data-device-id="${d.device_id}">${esc(d.display_name)}</button></td>${versions.map(v=>`<td>${availabilityCell(d,v)}</td>`).join('')}</tr>`).join('');
 }
 function renderHeader(){
   const ds=visibleDevices();
@@ -60,11 +62,23 @@ function renderHeader(){
 }
 function refreshDeviceOptions(){
   ['compareDeviceSelect','moduleDeviceSelect','connDeviceA','connDeviceB'].forEach(id=>{const element=$('#'+id),previous=element.value;element.innerHTML=deviceOptions(id==='connDeviceA'?'Device A':id==='connDeviceB'?'Device B':'Select device');element.value=visibleDevices().some(d=>String(d.device_id)===previous)?previous:'';});
+  refreshModuleOptions();
+}
+function refreshModuleOptions(){
+  const element=$('#moduleSelect'),previous=element.value;
+  const facts=visibleDevices().flatMap(d=>d.modules);
+  const excluded=m=>targetVersion&&facts.some(f=>f.module_id===m.module_id)&&facts.filter(f=>f.module_id===m.module_id).every(f=>f.compatible===false||f.compatible===0);
+  const known=DB.modules.filter(m=>!excluded(m)&&(!targetVersion||facts.some(f=>f.module_id===m.module_id&&f.compatible!==false&&f.compatible!==0)));
+  const unknown=targetVersion?DB.modules.filter(m=>!excluded(m)&&!known.includes(m)):[];
+  const option=m=>`<option value="${m.module_id}">${esc(m.model)}</option>`;
+  element.innerHTML='<option value="">Select module</option>'+known.map(option).join('')+(unknown.length?'<optgroup label="Compatibility not verified for this version">'+unknown.map(option).join('')+'</optgroup>':'');
+  element.value=[...known,...unknown].some(m=>String(m.module_id)===previous)?previous:'';
 }
 function changeVersion(){
-  targetVersion=$('#versionFilter').value;
+  targetVersion=majorVersions.includes($('#versionFilter').value)?$('#versionFilter').value:'';
+  $('#versionFilter').value=targetVersion;
   try{window.localStorage.setItem(versionStorageKey,targetVersion);}catch{}
-  refreshDeviceOptions();renderHeader();renderBrowse();renderFinder();renderCompare();renderModuleLookups();renderConnections();
+  refreshDeviceOptions();renderHeader();renderBrowse();renderFinder();renderCompare();renderModuleLookups();renderConnections();renderSources();renderVersionAudit();renderAboutStats();
   window.PTBuilderUI?.versionChanged();
   if(activeModalId!==null)openDevice(activeModalId);
 }
@@ -80,19 +94,19 @@ function init(){
   $('#versionFilter').value=targetVersion;
   renderHeader();
   $('#footerVersion').textContent=`Catalogue ${DB.metadata.catalogue_version} · schema ${DB.metadata.schema_version}`;
-  $('#aboutStats').innerHTML=`<div class="kv"><dt>Devices</dt><dd>${DB.stats.devices}</dd><dt>Modules</dt><dd>${DB.stats.modules}</dd><dt>Features</dt><dd>${DB.stats.features}</dd><dt>Sources</dt><dd>${DB.stats.sources}</dd><dt>Coverage</dt><dd>${esc(DB.metadata.packet_tracer_versions_covered)}</dd><dt>Generated</dt><dd>${esc(DB.metadata.generated_at)}</dd></div>`;
+  renderAboutStats();
 
   $('#reqCategory').innerHTML=optionList(DB.categories,'slug','name');
   $('#browseCategory').innerHTML=optionList(DB.categories,'slug','name');
   $('#browseFeature').innerHTML=optionList(DB.featureCatalog,'slug','name');
   $('#compareDeviceSelect').innerHTML=deviceOptions();
   $('#moduleDeviceSelect').innerHTML=deviceOptions();
-  $('#moduleSelect').innerHTML=`<option value="">Select module</option>`+DB.modules.map(m=>`<option value="${m.module_id}">${esc(m.model)}</option>`).join('');
+  refreshModuleOptions();
   $('#connDeviceA').innerHTML=deviceOptions('Device A');
   $('#connDeviceB').innerHTML=deviceOptions('Device B');
   renderFeatureSelector();renderSources();renderVersionAudit();renderBrowse();renderFinder();renderCompare();renderModuleLookups();
   bindEvents();
-  window.PTBuilderUI?.init({db:DB,getVersion:()=>targetVersion,onVersionChange:major=>{$('#versionFilter').value=major;changeVersion();},onOpenBuilder:()=>showView('builder'),onCountChange:count=>{$('#builderCount').textContent=String(count);}});
+  window.PTBuilderUI?.init({db:DB,getVersion:()=>targetVersion,onOpenBuilder:()=>showView('builder'),onCountChange:count=>{$('#builderCount').textContent=String(count);}});
 }
 
 function bindEvents(){
@@ -206,15 +220,25 @@ function renderConnections(){const rawA=deviceById[Number($('#connDeviceA').valu
   $('#connectionOutput').innerHTML=`<div class="panel"><h3>${esc(a.display_name)} ↔ ${esc(b.display_name)}</h3>${warning.length?`<p class="context-note">${esc([...new Set(warning)].join(' '))}</p>`:''}${opts.length?opts.map(o=>`<div class="connection-card"><h4>${esc(o.title)} — ${esc(o.cable)}</h4><div class="kv"><dt>${esc(a.display_name)}</dt><dd>${esc(o.a.name)} (${esc(o.a.via)})</dd><dt>${esc(b.display_name)}</dt><dd>${esc(o.b.name)} (${esc(o.b.via)})</dd>${o.speed&&Number.isFinite(o.speed)?`<dt>Link ceiling</dt><dd>${o.speed>=1000?(o.speed/1000)+' Gb/s':o.speed+' Mb/s'} based on the slower selected interface</dd>`:''}<dt>Note</dt><dd>${esc(o.note)}</dd></div></div>`).join(''):`<p class="muted">${targetVersion&&!ai.length||targetVersion&&!bi.length?'No interface data verified for both devices in PT '+targetVersion+'.x.':'No compatible connection is recorded from the available built-in/module interfaces.'} Verify the Physical tab in your Packet Tracer version.</p>`}</div>`;
 }
 
-function renderSources(){$('#sourcesBody').innerHTML=DB.sources.map(s=>`<tr><td><span class="source-tier tier-${s.source_tier}">Tier ${s.source_tier}</span></td><td>${esc(s.publisher)}</td><td>${esc(s.title)}</td><td>${esc(s.source_type)}</td><td>${esc(s.publication_date||'—')}</td><td><a href="${esc(s.url)}" target="_blank" rel="noopener">Open source</a></td></tr>`).join('');}
+function scopedSources(){
+  if(!targetVersion)return DB.sources;
+  const urls=new Set(DB.devices.flatMap(d=>uniqueDeviceSources(contextDevice(d))).map(s=>s.url));
+  return DB.sources.filter(s=>urls.has(s.url));
+}
+function renderSources(){$('#sourcesBody').innerHTML=scopedSources().map(s=>`<tr><td><span class="source-tier tier-${s.source_tier}">Tier ${s.source_tier}</span></td><td>${esc(s.publisher)}</td><td>${esc(s.title)}</td><td>${esc(s.source_type)}</td><td>${esc(s.publication_date||'—')}</td><td><a href="${esc(s.url)}" target="_blank" rel="noopener">Open source</a></td></tr>`).join('')||'<tr><td colspan="6" class="empty-state">No sources recorded for this version.</td></tr>';}
+function renderAboutStats(){
+  const ds=visibleDevices(),modules=targetVersion?new Set(ds.flatMap(d=>d.modules.map(m=>m.module_id))).size:DB.stats.modules;
+  const features=targetVersion?new Set(ds.flatMap(d=>d.features.map(f=>f.slug))).size:DB.stats.features;
+  $('#aboutStats').innerHTML=`<div class="kv"><dt>Devices</dt><dd>${ds.length}</dd><dt>${targetVersion?'Modules with evidence':'Modules'}</dt><dd>${modules}</dd><dt>${targetVersion?'Features with evidence':'Features'}</dt><dd>${features}</dd><dt>Sources</dt><dd>${scopedSources().length}</dd><dt>Coverage</dt><dd>${targetVersion?'PT '+esc(targetVersion)+'.x':esc(DB.metadata.packet_tracer_versions_covered)}</dd><dt>Generated</dt><dd>${esc(DB.metadata.generated_at)}</dd></div>`;
+}
 
 function sourceLink(url,title,publisher){return url?`<a href="${esc(url)}" title="${esc(title)}" target="_blank" rel="noopener">${esc(publisher||title||'Source')}</a>`:'—';}
 function openDevice(id){const raw=deviceById[id];if(!raw)return;
   if(activeModalId===null){modalReturnFocus=document.activeElement;modalBodyOverflow=document.body.style.overflow;modalBackgroundState=$$('.app-header, .tabs, main, footer').map(element=>[element,element.inert]);modalBackgroundState.forEach(([element])=>{element.inert=true;});}
   activeModalId=id;const d=contextDevice(raw),featGroups={};d.features.forEach(f=>(featGroups[f.category_name]??=[]).push(f));
   $('#modalContent').innerHTML=`<div class="detail-header"><div class="eyebrow">${esc(d.category.name)}</div><h2 id="modalTitle">${esc(d.display_name)}</h2><p>${esc(d.description||'')}</p><div class="chips"><span class="chip">PT name: ${esc(d.pt_name)}</span><span class="chip">Layer: ${esc(d.layer_capability)}</span><span class="chip">${d.is_modular?'Modular':'Fixed'}</span>${availabilityBadge(d)}${verifyBadge(d.verification_status)}</div>${contextWarning(d)?`<p class="context-note">${esc(contextWarning(d))}</p>`:''}<div class="card-actions">${selectionButton(d)}</div></div>
-  <section class="detail-section"><h3>Version availability</h3><div class="table-wrap"><table class="data-table"><thead><tr><th>Version</th><th>Availability</th><th>Evidence</th></tr></thead><tbody>${majorVersions.map(v=>{const a=availability(raw,v);return `<tr><td>${v}.x</td><td>${availabilityCell(raw,v)}</td><td>${esc(a.notes)}<small class="muted">${esc(a.evidence_kind||'unverified')} · checked ${esc(a.checked_date||'Not recorded')}</small></td></tr>`;}).join('')}</tbody></table></div></section>
-  <div class="detail-grid"><section class="detail-section"><h3>${targetVersion?'General model reference':'Build use'}</h3><div class="kv"><dt>Typical use</dt><dd>${esc(d.typical_use||'—')}</dd><dt>Role reference</dt><dd>${esc(d.roles.map(r=>r.name).join(', ')||'—')}</dd><dt>PT coverage</dt><dd>${esc(availabilityText(raw,''))}</dd></div></section>
+  <section class="detail-section"><h3>Version availability</h3><div class="table-wrap"><table class="data-table"><thead><tr><th>Version</th><th>Availability</th><th>Evidence</th></tr></thead><tbody>${(targetVersion?[targetVersion]:majorVersions).map(v=>{const a=availability(raw,v);return `<tr><td>${v}.x</td><td>${availabilityCell(raw,v)}</td><td>${esc(a.notes)}<small class="muted">${esc(a.evidence_kind||'unverified')} · checked ${esc(a.checked_date||'Not recorded')}</small></td></tr>`;}).join('')}</tbody></table></div></section>
+  <div class="detail-grid"><section class="detail-section"><h3>${targetVersion?'General model reference':'Build use'}</h3><div class="kv"><dt>Typical use</dt><dd>${esc(d.typical_use||'—')}</dd><dt>Role reference</dt><dd>${esc(d.roles.map(r=>r.name).join(', ')||'—')}</dd><dt>PT coverage</dt><dd>${esc(availabilityText(raw))}</dd></div></section>
   <section class="detail-section"><h3>Built-in interfaces</h3>${verifyBadge(d.interface_verification_status)}${d.interfaces.length?`<div class="ports">${d.interfaces.map(i=>`<span class="port-pill">${i.quantity}× ${esc(i.name)}${i.name_pattern?` · ${esc(i.name_pattern)}`:''}</span>`).join('')}</div>`:'<p class="muted">No interface data verified for this version.</p>'}</section></div>
   <section class="detail-section"><h3>Features</h3>${Object.entries(featGroups).map(([g,fs])=>`<h4>${esc(g)}</h4><div class="ports">${fs.map(f=>`<span class="port-pill feature-state state-${f.verification_status!=='Verified'?'unknown':f.support_mode}" title="${esc(f.notes||'')}">${esc(featureText(f))} ${esc(f.name)}</span>`).join('')}</div>`).join('')||'<p class="muted">No feature support verified for this version.</p>'}</section>
   <section class="detail-section"><h3>Expansion modules</h3>${d.modules.length?d.modules.map(m=>moduleCard(m,d.device_id)).join(''):'<p class="muted">No module compatibility verified for this version.</p>'}</section>
@@ -222,7 +246,7 @@ function openDevice(id){const raw=deviceById[id];if(!raw)return;
   <section class="detail-section"><h3>Evidence</h3><div class="muted">Interface and feature records include individual evidence links. For build-critical decisions, verify the device Physical/CLI tabs in your installed Packet Tracer version when the record is marked Partial.</div>${uniqueDeviceSources(d).map(s=>`<div>Tier ${s.tier}: ${sourceLink(s.url,s.title,s.publisher)}</div>`).join('')}</section>`;
   $('#modal').classList.remove('hidden');document.body.style.overflow='hidden';$('#modalCloseBtn').focus();
 }
-function uniqueDeviceSources(d){const seen=new Map();const add=(url,title,publisher,tier)=>{if(url&&!seen.has(url))seen.set(url,{url,title,publisher,tier:tier||4});};d.versions.forEach(x=>add(x.source_url,x.source_title,x.source_publisher,x.source_tier));d.interfaces.forEach(x=>add(x.source_url,x.source_title,x.source_publisher,x.source_tier));d.features.forEach(x=>add(x.source_url,x.source_title,x.source_publisher,x.source_tier));d.modules.forEach(x=>add(x.source_url,x.source_title,x.source_publisher,x.source_tier));d.limitations.forEach(x=>add(x.source_url,x.source_title,x.source_publisher,x.source_tier));return [...seen.values()].sort((a,b)=>a.tier-b.tier);}
+function uniqueDeviceSources(d){const seen=new Map();const add=(url,title,publisher,tier)=>{if(url&&!seen.has(url))seen.set(url,{url,title,publisher,tier:tier||4});};d.versions.filter(x=>!targetVersion||String(x.major_version)===targetVersion).forEach(x=>add(x.source_url,x.source_title,x.source_publisher,x.source_tier));d.interfaces.forEach(x=>add(x.source_url,x.source_title,x.source_publisher,x.source_tier));d.features.forEach(x=>add(x.source_url,x.source_title,x.source_publisher,x.source_tier));d.modules.forEach(x=>add(x.source_url,x.source_title,x.source_publisher,x.source_tier));d.limitations.forEach(x=>add(x.source_url,x.source_title,x.source_publisher,x.source_tier));return [...seen.values()].sort((a,b)=>a.tier-b.tier);}
 function handleModalKeydown(e){
   if(activeModalId===null)return;
   if(e.key==='Escape'){e.preventDefault();closeModal();return;}

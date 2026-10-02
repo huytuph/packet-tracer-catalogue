@@ -1,6 +1,6 @@
 # Cisco Packet Tracer Network Device Catalogue
 
-A community catalogue of Cisco Packet Tracer network devices for searching, comparing and choosing devices by ports and features, with module compatibility and connection options across Packet Tracer versions 6, 7, 8 and 9. Keep devices and parts in a selection list, then build, copy or export CLI configurations for supported IOS models.
+A community catalogue of Cisco Packet Tracer network devices for searching, comparing and choosing devices by ports and features, with module compatibility and connection options across Packet Tracer versions 6, 7, 8 and 9. Keep devices and parts in a selection list and prepare device-specific configurations using the global version selection. CLI export requires matching simulator-tested evidence; no CLI cases are currently approved. GUI configuration worksheets remain available as manual planning notes.
 
 [Open the catalogue](https://huytuph.github.io/packet-tracer-catalogue/)
 
@@ -23,3 +23,5 @@ This is an independent community project, not affiliated with, endorsed by or sp
 External source documents, software and other third-party materials retain their own ownership and terms. This project's license does not relicense them or grant trademark rights.
 
 Bundled [Lucide icons](https://lucide.dev) retain their [ISC license](assets/icons/LICENSE).
+
+Bundled [ipaddr.js](https://github.com/whitequark/ipaddr.js) retains its [MIT license](assets/vendor/ipaddr.LICENSE).

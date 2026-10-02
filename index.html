@@ -28,7 +28,7 @@
     <button class="tab" data-view="compare">Compare</button>
     <button class="tab" data-view="modules">Modules</button>
     <button class="tab" data-view="connections">Connections</button>
-    <button class="tab" data-view="builder"><img class="button-icon" src="assets/icons/shopping-cart.svg" alt="" aria-hidden="true"> CLI Builder <span id="builderCount" class="selection-count" aria-live="polite" aria-label="Selected components count">0</span></button>
+    <button class="tab" data-view="builder"><img class="button-icon" src="assets/icons/shopping-cart.svg" alt="" aria-hidden="true"> Config Builder <span id="builderCount" class="selection-count" aria-live="polite" aria-label="Selected components count">0</span></button>
     <button class="tab" data-view="sources">Sources</button>
     <button class="tab" data-view="about">About</button>
   </nav>
@@ -154,7 +154,7 @@
 
     <section id="view-builder" class="view">
       <div class="section-heading">
-        <div><h2>CLI Configuration Builder</h2></div>
+        <div><h2>Component Configuration Builder</h2></div>
       </div>
       <div id="builderWorkspace"></div>
     </section>
@@ -179,7 +179,7 @@
         <h3>Device Availability by Version</h3>
         <p class="muted">Availability is documented for the cited release, not every minor release in a family. Unknown is not absence. Interface and feature verification is separate.</p>
         <div id="versionCoverageSummary" class="result-summary"></div>
-        <div class="table-wrap"><table class="data-table"><thead><tr><th>Device</th><th>6.x</th><th>7.x</th><th>8.x</th><th>9.x</th></tr></thead><tbody id="versionAuditBody"></tbody></table></div>
+        <div class="table-wrap"><table class="data-table"><thead id="versionAuditHead"><tr><th>Device</th><th>6.x</th><th>7.x</th><th>8.x</th><th>9.x</th></tr></thead><tbody id="versionAuditBody"></tbody></table></div>
       </section>
     </section>
   </main>
@@ -194,10 +194,12 @@
 
   <footer>
     <span id="footerVersion"></span>
-    <span>Offline-first · no runtime dependencies · external source links require internet only when opened</span>
+    <span>Offline-first · no external runtime dependencies · external source links require internet only when opened</span>
   </footer>
 
   <script src="data/catalogue-data.js"></script>
+  <script src="data/command-verification.js"></script>
+  <script src="assets/vendor/ipaddr.js"></script>
   <script src="js/config-builder.js"></script>
   <script src="js/builder-ui.js"></script>
   <script src="js/app.js"></script>

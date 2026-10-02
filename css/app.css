@@ -107,6 +107,13 @@ main{margin:0}
 .builder-editor fieldset{border:0;border-top:1px solid var(--border);padding:.85rem 0;margin:.75rem 0;min-width:0}
 .builder-editor legend{font-weight:700;padding:0 .5rem 0 0}
 .builder-editor details{border-top:1px solid var(--border);padding:.8rem 0}
+.builder-config-group,.builder-config-row,.builder-config-list{min-width:0;max-width:100%}
+.builder-editor .builder-config-group{padding-left:.65rem;border-left:2px solid var(--border)}
+.builder-config-row>.icon-button{margin-top:.5rem}
+.builder-config-list>button{max-width:100%}
+.builder-coverage .table-wrap{max-height:24rem}
+.builder-coverage td{max-width:28ch;min-width:8rem}
+.builder-coverage td:first-child{min-width:10rem}
 .builder-editor summary{font-weight:700;cursor:pointer}
 .builder-editor input[type=checkbox]{flex-shrink:0}
 .builder-output{width:min(68rem,100%);margin-top:1.25rem}

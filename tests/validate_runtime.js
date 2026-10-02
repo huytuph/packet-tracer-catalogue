@@ -275,6 +275,17 @@ function confidenceContext(db, major, templateMajor) {
   return target;
 }
 
+function sourceUrls(markup) {
+  return [...new Set([...markup.matchAll(/<a\b[^>]*href="([^"]+)"/g)].map(match => match[1]))].sort();
+}
+
+function statistic(ui, label) {
+  const pattern = new RegExp('<dt>' + label + '</dt><dd>([\\s\\S]*?)</dd>');
+  const match = ui.get('aboutStats').innerHTML.match(pattern);
+  assert(match, 'Missing About statistic ' + label);
+  return text(match[1]);
+}
+
 check('complete four-family data and 136 assessment audit', () => {
   assert.equal(catalogue.devices.length, 34);
   for (const device of catalogue.devices) {
@@ -682,7 +693,7 @@ check('all module lookups and connection pairs render in All and each version', 
   }
 });
 
-check('builder initialization connects version, navigation and count callbacks', () => {
+check('builder initialization reads the authoritative global version and connects navigation and counts', () => {
   let configuration, initializations = 0, versionChanges = 0;
   const builder = {
     init(options) { configuration = options; initializations++; },
@@ -692,19 +703,94 @@ check('builder initialization connects version, navigation and count callbacks',
   assert.equal(initializations, 1);
   assert.equal(configuration.db, catalogue);
   assert.equal(configuration.getVersion(), '8');
+  assert.equal(configuration.onVersionChange, undefined, 'Builder must not own an independent version setter');
   configuration.onCountChange(7);
   assert.equal(ui.get('builderCount').textContent, '7');
   ui.version('7');
   assert.equal(configuration.getVersion(), '7');
   assert.equal(versionChanges, 1);
-  configuration.onVersionChange('9');
+  ui.version('9');
   assert.equal(ui.get('versionFilter').value, '9');
   assert.equal(configuration.getVersion(), '9');
   assert.equal(versionChanges, 2);
+  ui.version('');
+  assert.equal(configuration.getVersion(), '');
+  assert.equal(versionChanges, 3);
   configuration.onOpenBuilder();
   assert(ui.get('view-builder').classes.has('active'));
   assert.equal(ui.views.filter(view => view.classes.has('active')).length, 1);
   assert(ui.tabs.find(tab => tab.dataset.view === 'builder').classes.has('active'));
+});
+
+check('global versions scope Sources, About counts, the audit and modal availability rows', () => {
+  const ui = boot();
+  const model = catalogue.devices.find(device => device.pt_name === '1941');
+  for (const major of ['', ...families]) {
+    ui.version(major);
+    const versions = major ? [major] : families;
+    const headers = [...ui.get('versionAuditHead').innerHTML.matchAll(/<th>([^<]*)<\/th>/g)].map(match => match[1]);
+    assert.deepEqual(headers, ['Device', ...versions.map(value => value + '.x')]);
+    const audit = tableRows(ui.get('versionAuditBody').innerHTML);
+    assert.equal(audit.length, catalogue.devices.length, 'Unavailable devices must remain in the assessment audit');
+    assert(audit.every(row => tableCells(row).length === versions.length + 1));
+    assert.equal(ui.get('versionCoverageSummary').textContent, catalogue.devices.length + ' devices · ' + (catalogue.devices.length * versions.length) + ' device/version assessments');
+    const expected = new Set();
+    if (!major) catalogue.sources.forEach(source => expected.add(source.url));
+    else for (const device of catalogue.devices) {
+      const profile = device.version_profiles[major];
+      if (profile.availability.source_url) expected.add(profile.availability.source_url);
+      if (profile.availability.available === true) {
+        for (const field of ['interfaces', 'features', 'modules', 'limitations']) {
+          for (const row of profile[field]) if (row.source_url) expected.add(row.source_url);
+        }
+      }
+    }
+    const expectedUrls = catalogue.sources.filter(source => expected.has(source.url)).map(source => source.url).sort();
+    assert.deepEqual(sourceUrls(ui.get('sourcesBody').innerHTML), expectedUrls, (major || 'All') + ' source context');
+    const visible = allowed(catalogue, major);
+    const profiles = major ? visible.filter(device => device.version_profiles[major].availability.available === true).map(device => device.version_profiles[major]) : [];
+    assert.equal(statistic(ui, 'Devices'), String(visible.length));
+    assert.equal(statistic(ui, major ? 'Modules with evidence' : 'Modules'), String(major ? new Set(profiles.flatMap(profile => profile.modules.map(module => module.module_id))).size : catalogue.stats.modules));
+    assert.equal(statistic(ui, major ? 'Features with evidence' : 'Features'), String(major ? new Set(profiles.flatMap(profile => profile.features.map(feature => feature.slug))).size : catalogue.stats.features));
+    assert.equal(statistic(ui, 'Sources'), String(expectedUrls.length));
+    assert.equal(statistic(ui, 'Coverage'), major ? 'PT ' + major + '.x' : catalogue.metadata.packet_tracer_versions_covered);
+    ui.clickData('device-id', model.device_id);
+    const availabilitySection = ui.get('modalContent').innerHTML.match(/<h3>Version availability<\/h3>([\s\S]*?)<\/section>/)?.[1];
+    assert(availabilitySection);
+    const rows = tableRows(availabilitySection);
+    assert.deepEqual(rows.map(row => text(tableCells(row)[0])), versions.map(value => value + '.x'));
+    const expectedModelSources = new Set((major ? model.versions.filter(row => String(row.major_version) === major) : model.versions).map(row => row.source_url).filter(Boolean));
+    const facts = major ? model.version_profiles[major] : model;
+    for (const field of ['interfaces', 'features', 'modules', 'limitations']) facts[field].forEach(row => { if (row.source_url) expectedModelSources.add(row.source_url); });
+    assert.deepEqual(sourceUrls(ui.get('modalContent').innerHTML), [...expectedModelSources].sort());
+    ui.clickData('close-modal', '');
+  }
+  ui.get('versionFilter')._value = 'unsupported'; ui.emit('versionFilter', 'change');
+  assert.equal(ui.get('versionFilter').value, '', 'Invalid global context must normalize to All');
+  assert.equal(ui.storage.get(storageKey), '');
+});
+
+check('module picker labels unknown evidence and drops an explicitly incompatible stale selection', () => {
+  const db = isolationCatalogue();
+  const denied = {...db.modules.find(module => module.module_id === 800), compatible: false};
+  for (const device of db.devices.slice(0, 2)) device.version_profiles['7'].modules = [denied];
+  const ui = boot(db);
+  ui.version('8');
+  assert(ui.get('moduleSelect').options.includes('800'));
+  assert.match(ui.get('moduleSelect').innerHTML, /<optgroup label="Compatibility not verified for this version">/);
+  const unknownOptions = ui.get('moduleSelect').innerHTML.match(/<optgroup[^>]*>([\s\S]*?)<\/optgroup>/)?.[1];
+  assert.match(unknownOptions, /value="900"/);
+  assert.match(unknownOptions, /value="999"/);
+  assert.doesNotMatch(unknownOptions, /value="800"/);
+  ui.select('moduleSelect', '800');
+  ui.version('7');
+  assert(!ui.get('moduleSelect').options.includes('800'), 'Incompatible-only evidence must not remain a selectable match');
+  assert.equal(ui.get('moduleSelect').value, '');
+  assert.match(ui.get('moduleDevices').innerHTML, /Select a module/);
+  assert(ui.get('moduleSelect').options.includes('900'), 'Missing evidence is not absence');
+  ui.version('');
+  assert(ui.get('moduleSelect').options.includes('800'));
+  assert.doesNotMatch(ui.get('moduleSelect').innerHTML, /<optgroup/);
 });
 
 check('selection delegation uses numeric identities and success-only focused feedback', () => {

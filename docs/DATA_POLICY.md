@@ -85,14 +85,20 @@ Cable suggestions are conventional Packet Tracer networking guidance. Auto-MDIX 
 
 ## Generated CLI guidance
 
-The CLI builder produces configuration text from a selected device, version context and supplied settings. Its command templates are documentation-supported guidance, not evidence that the output has been executed successfully in every Packet Tracer release. Device availability, capability verification and command-template verification remain separate claims.
+The builder uses the global Packet Tracer version selector throughout; there are no independent builder or device-release selectors. A selected family uses that family's availability and technical evidence. All versions remains a combined planning and manual-worksheet context, not a target for verified CLI generation. Device availability, capability verification and command-template verification remain separate claims.
 
-Verify build-critical commands in the exact installed Packet Tracer release before applying them. A passing generator or UI test checks application behavior, not simulator acceptance; an exact-release runtime test is required before calling generated commands runtime-verified.
+Every bundled device is mapped to a CLI platform or a manual configuration worksheet, and every module and feature has a recorded coverage disposition. See [Builder coverage](BUILDER_COVERAGE.md). This mapping is not a claim that every command or option in Packet Tracer has a typed generator control. GUI-managed devices receive worksheets, not invented IOS commands; modules use their host's actual ports and configuration context, not universal module scripts.
 
-Selected devices and modules form a planning list. Selection does not install physical modules, establish module interface names, cable a topology or send commands to Packet Tracer. `.txt` exports contain CLI text; `.cfg` exports contain configuration-only text. Neither export is a `.pkt` topology file.
+Documented availability in a 9.0.1 inventory does not mean that commands were executed in 9.0.1. Command references support a documentation claim only. A passing generator or UI test checks application behavior, not simulator acceptance.
+
+CLI generation and export require matching runtime-verification records for the exact recorded release, device model and ordered command variants, including a captured transcript and prerequisites. Unknown, missing or documentation-only command evidence cannot authorize CLI output. There are currently no runtime-verified command records. A test in one release does not certify every minor release in its major family, nor every configuration or topology supplied by a user.
+
+The [command evidence manifest](COMMAND_VERIFICATION.md) permits only one common tested exact release per major across all models; conflicting releases make that global context ambiguous and block CLI output. Transcript hashes and schema checks establish record consistency, not execution authenticity. Genuine simulator execution and state assertions require review; synthetic application-test fixtures are never runtime evidence.
+
+Selected devices and modules form a planning list. Selection does not install physical modules, establish module interface names, cable a topology or send commands to Packet Tracer. When verification permits them, CLI `.txt` and `.cfg` exports are complete command scripts: `enable`, `configure terminal`, generated commands line by line, then `end`. Evidence stays in verification metadata rather than script headers; diagnostic commands remain separate. These scripts are not startup-configuration imports. Manual worksheets remain available as non-executable `.txt` even when `.cfg` is requested; they are not runtime-verified configurations. Neither export is a `.pkt` topology file.
 
 ## Local selection data
 
 When available, browser `localStorage` retains the version preference, selected devices/parts and configuration drafts. The app does not upload this data; clipboard copying and file exports occur only through user actions. Clearing the selection overwrites the saved selection with an empty list. If storage is unavailable or saving fails, the current session remains usable.
 
-The builder has no credential fields and does not deploy commands to Packet Tracer or remote devices.
+Credential secrets and manual worksheet values are retained only in the current session and excluded from saved drafts and restoration. Generated commands or worksheets, clipboard copies and downloaded files can contain those values in plaintext; treat them as sensitive. The app does not deploy commands to Packet Tracer or remote devices.

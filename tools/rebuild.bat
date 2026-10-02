@@ -15,15 +15,19 @@ if errorlevel 1 (
 %PY% "%ROOT%\tools\init_database.py" || exit /b 1
 %PY% "%ROOT%\tools\export_browser_data.py" || exit /b 1
 %PY% "%ROOT%\tests\validate_catalogue.py" || exit /b 1
+%PY% "%ROOT%\tests\validate_command_verification.py" || exit /b 1
+%PY% "%ROOT%\tests\test_command_verification.py" || exit /b 1
 %PY% "%ROOT%\tests\test_version_profiles.py" || exit /b 1
 %PY% "%ROOT%\tests\test_generated_data.py" || exit /b 1
 %PY% "%ROOT%\tests\validate_generated_data.py" || exit /b 1
 where node >nul 2>nul
 if %errorlevel%==0 (
   node --check "%ROOT%\js\app.js" || exit /b 1
+  node --check "%ROOT%\assets\vendor\ipaddr.js" || exit /b 1
   node --check "%ROOT%\js\config-builder.js" || exit /b 1
   node --check "%ROOT%\js\builder-ui.js" || exit /b 1
   node --check "%ROOT%\data\catalogue-data.js" || exit /b 1
+  node --check "%ROOT%\data\command-verification.js" || exit /b 1
   node "%ROOT%\tests\validate_runtime.js" || exit /b 1
   node "%ROOT%\tests\validate_config_builder.js" || exit /b 1
   node "%ROOT%\tests\validate_builder_ui.js" || exit /b 1

@@ -14,7 +14,8 @@ BUNDLE_PATH = ROOT / "data" / "catalogue-data.js"
 VERSION_EVIDENCE_PATH = ROOT / "data" / "version-evidence.json"
 INDEX_PATH = ROOT / "index.html"
 APP_JS = ROOT / "js" / "app.js"
-RUNTIME_JS = (ROOT / "js" / "config-builder.js", ROOT / "js" / "builder-ui.js", APP_JS)
+RUNTIME_JS = (ROOT / "data" / "command-verification.js", ROOT / "assets" / "vendor" / "ipaddr.js", ROOT / "js" / "config-builder.js",
+              ROOT / "js" / "builder-ui.js", APP_JS)
 CSS_PATH = ROOT / "css" / "app.css"
 ICON_DIR = ROOT / "assets" / "icons"
 RUNTIME_ICONS = ("check", "copy", "download", "minus", "package", "plus", "shopping-cart", "terminal", "trash", "x")
@@ -234,6 +235,7 @@ def validate_bundle(db_counts: dict[str, int]) -> None:
     check(len(data.get("modules", [])) == db_counts["modules"], "Browser module count differs from SQLite")
     check(len(data.get("sources", [])) == db_counts["sources"], "Browser source count differs from SQLite")
     check(data.get("stats", {}).get("features") == db_counts["features"], "Browser feature count differs from SQLite")
+    validate_builder_coverage(data)
     for device in data.get('devices', []):
         profiles = device.get('version_profiles', {})
         check(set(profiles) == {'6', '7', '8', '9'}, f"{device['pt_name']}: missing version profiles")
@@ -269,6 +271,35 @@ def validate_bundle(db_counts: dict[str, int]) -> None:
             check(profile.get('max_module_total_ports') == total_expansion, f"{label}: module total differs from scoped compatibility")
 
 
+def validate_builder_coverage(data: dict) -> None:
+    path = ROOT / "docs" / "BUILDER_COVERAGE.md"
+    check(path.is_file(), "Builder coverage documentation is missing")
+    if not path.is_file():
+        return
+    text = path.read_text(encoding="utf-8")
+
+    def section(heading: str) -> str:
+        match = re.search(rf"(?ms)^## {re.escape(heading)}\n(.*?)(?=^## |\Z)", text)
+        check(match is not None, f"Builder coverage section is missing: {heading}")
+        return match.group(1) if match else ""
+
+    def first_column(heading: str, label: str) -> list[str]:
+        return [value.strip() for value in re.findall(r"(?m)^\| ([^|]+) \|", section(heading))
+                if value.strip() not in (label, "---")]
+
+    devices = first_column("Device mapping", "Device")
+    modules = first_column("Module mapping", "Module")
+    features = set(re.findall(r"`([a-z][a-z0-9_]*)`", section("Feature mapping")))
+    check(len(devices) == len(set(devices)), "Builder coverage repeats a device")
+    check(len(modules) == len(set(modules)), "Builder coverage repeats a module")
+    check(set(devices) == {row["pt_name"] for row in data.get("devices", [])},
+          "Builder coverage must map every bundled device exactly")
+    check(set(modules) == {row["model"] for row in data.get("modules", [])},
+          "Builder coverage must map every bundled module exactly")
+    check(features == {row["slug"] for row in data.get("featureCatalog", [])},
+          "Builder coverage must assess every defined feature exactly")
+
+
 def validate_offline_runtime() -> None:
     index = INDEX_PATH.read_text(encoding="utf-8")
     app = APP_JS.read_text(encoding="utf-8")
@@ -284,7 +315,7 @@ def validate_offline_runtime() -> None:
 
     script_sources = re.findall(r"<script[^>]+src=['\"]([^'\"]+)['\"]", index, flags=re.I)
     expected_scripts = ['data/catalogue-data.js'] + [path.relative_to(ROOT).as_posix() for path in RUNTIME_JS]
-    check(script_sources == expected_scripts, "Runtime scripts must load catalogue data, builder engine, builder UI and app in order")
+    check(script_sources == expected_scripts, "Runtime scripts must load catalogue data, command evidence, bundled address parser, builder engine, builder UI and app in order")
 
     external_runtime = re.findall(r"<(?:script|link)[^>]+(?:src|href)=['\"]https?://", index, flags=re.I)
     check(not external_runtime, "index.html contains external runtime CSS/JS dependencies")
@@ -306,6 +337,8 @@ def validate_offline_runtime() -> None:
     for name in RUNTIME_ICONS:
         check((ICON_DIR / f"{name}.svg").is_file(), f"Bundled runtime icon is missing: {name}.svg")
     check((ICON_DIR / "LICENSE").is_file(), "Bundled icon license is missing")
+    check((ROOT / "assets" / "vendor" / "ipaddr.LICENSE").is_file(), "Bundled address parser license is missing")
+    check((ROOT / "assets" / "vendor" / "SOURCE.md").is_file(), "Bundled address parser provenance is missing")
 
     # Catch simple runtime breakage where app.js references a missing DOM id.
     html_ids = set(re.findall(r'id=[\"\']([^\"\']+)[\"\']', index))

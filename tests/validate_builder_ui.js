@@ -7,6 +7,8 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const uiSource = fs.readFileSync(path.join(root, 'js/builder-ui.js'), 'utf8');
 const engineSource = fs.readFileSync(path.join(root, 'js/config-builder.js'), 'utf8');
+const ipSource = fs.readFileSync(path.join(root, 'assets/vendor/ipaddr.js'), 'utf8');
+const evidenceSource = fs.readFileSync(path.join(root, 'data/command-verification.js'), 'utf8');
 const dataWindow = {};
 vm.runInNewContext(fs.readFileSync(path.join(root, 'data/catalogue-data.js'), 'utf8'), {window: dataWindow});
 const catalogue = JSON.parse(JSON.stringify(dataWindow.PT_CATALOGUE));
@@ -14,6 +16,34 @@ const storageKey = 'ptCatalogue.builder.v1';
 const checks = [];
 const check = (name, run) => checks.push({name, run});
 const decode = value => String(value).replace(/&(amp|lt|gt|quot|#39);/g, (_, entity) => ({amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'"}[entity]));
+const testReleases = {'6': '6.3', '7': '7.3.1', '8': '8.2.2', '9': '9.0.1'};
+
+function assertCliScript(text) {
+  assert.match(text, /^enable\nconfigure terminal\n/);
+  assert.match(text, /\nend\n$/);
+  const lines = text.trim().split('\n');
+  for (const command of ['enable', 'configure terminal', 'end']) assert.equal(lines.filter(line => line.trim() === command).length, 1);
+  assert(!/^!|^show /m.test(text));
+}
+
+// Synthetic UI fixtures only: these are not simulator observations or production evidence.
+function syntheticManifest() {
+  const gui = new Set(['WLC-2504', 'WLC-3504', 'MX65W', 'HomeRouter', 'AccessPoint-PT', 'LAP-PT', '3702i', 'Cloud-PT']);
+  return {schema_version: 1, records: catalogue.devices.filter(model => !gui.has(model.pt_name)).flatMap(model => Object.entries(testReleases).map(([major, release]) => ({
+    id: 'ui-synthetic-' + model.device_id + '-' + major,
+    model: model.pt_name, major_version: Number(major), observed_release: release, template_revision: '2.0.1', format: 'txt', modules: [], prerequisites: ['Synthetic UI fixture only, not simulator evidence.'],
+    commands: [{rule_id: 'ui.synthetic', text: 'hostname TestOnly', result: 'accepted'}],
+    checks: [{rule_id: 'ui.synthetic-check', text: 'show running-config', result: 'accepted'}],
+    evidence: {method: 'packet-tracer-runtime', transcript_path: 'evidence/runtime/synthetic-ui-only.txt', transcript_sha256: '0'.repeat(64), checked_date: '2026-10-02', error_count: 0, running_config_assertions: ['Synthetic UI fixture, not runtime evidence.'], diagnostic_assertions: ['Synthetic UI fixture, not runtime evidence.']}
+  })))};
+}
+
+function syntheticEngineSource() {
+  const marker = 'const approved = matchingRecord(device, major, extension, config.modules, commands, checks);';
+  assert.equal(engineSource.split(marker).length, 2, 'The documented UI-test adaptor marker changed');
+  // UI workflows exercise forms/emission; exact sequence authorization is tested with unmodified source separately.
+  return engineSource.replace(marker, 'const approved = runtimeRecords.find(record => record.model === device.pt_name && String(record.major_version) === major);');
+}
 
 // A deliberately small DOM covers generated controls and delegated events, not layout.
 class Element {
@@ -96,7 +126,7 @@ class Element {
     return true;
   }
   querySelectorAll(selector) {
-    const selectors = selector.trim().split(/\s+/);
+    const selectors = selector.trim().match(/(?:\[[^\]]*\]|[^\s\[])+/g) || [];
     const result = [];
     const visit = item => {
       for (const child of item.children) {
@@ -177,12 +207,17 @@ function boot(options = {}) {
   };
   document.execCommand = () => options.execCopy === true;
   const context = {window, document};
-  vm.runInNewContext(engineSource, context, {filename: 'config-builder.js'});
+  vm.runInNewContext(ipSource, context, {filename: 'ipaddr.js'});
+  window.ipaddr = context.ipaddr;
+  vm.runInNewContext(evidenceSource, context, {filename: 'command-verification.js'});
+  if (!options.productionEvidence) window.PT_COMMAND_VERIFICATION = options.manifest || syntheticManifest();
+  vm.runInNewContext(options.productionEvidence || options.exactVerification ? engineSource : syntheticEngineSource(), context, {filename: 'config-builder.js'});
+  if (options.engineOverride) window.PTConfigBuilder = options.engineOverride(window.PTConfigBuilder);
   vm.runInNewContext(uiSource, context, {filename: 'builder-ui.js'});
   const db = options.db || JSON.parse(JSON.stringify(catalogue));
   const counts = [];
   const api = window.PTBuilderUI;
-  const settings = {db, getVersion: () => version, onVersionChange(value) { version = value; api.versionChanged(); }, onOpenBuilder() { opens++; }, onCountChange(count) { counts.push(count); }};
+  const settings = {db, getVersion: () => version, onOpenBuilder() { opens++; }, onCountChange(count) { counts.push(count); }};
   api.init(settings);
   const mount = document.querySelector('#builderWorkspace');
   const get = id => { const element = document.querySelector('#' + id); assert(element, 'Missing element #' + id); return element; };
@@ -198,14 +233,19 @@ function boot(options = {}) {
     return target;
   };
   const stored = () => JSON.parse(storage.get(storageKey));
-  return {api, db, window, document, mount, storage, clipboard, blobs, revoked, counts, settings, get, find, emit, action, field, stored, setVersion(value) { version = value; api.versionChanged(); }, getVersion: () => version, opens: () => opens, confirmCalls: () => confirmCalls};
+  const config = (path, value) => {
+    const target = find(`[data-config-path="${path}"]`);
+    if (target.type === 'checkbox') target.checked = value; else target.value = value;
+    emit(target.tagName === 'SELECT' ? 'change' : 'input', target);
+    return target;
+  };
+  return {api, db, window, document, mount, storage, clipboard, blobs, revoked, counts, settings, get, find, emit, action, field, config, stored, setVersion(value) { version = value; api.versionChanged(); }, getVersion: () => version, opens: () => opens, confirmCalls: () => confirmCalls};
 }
 
 const deviceId = name => catalogue.devices.find(device => device.pt_name === name).device_id;
 const moduleId = name => catalogue.modules.find(module => module.model === name).module_id;
 function basicRouter(ui) {
   assert.equal(ui.api.addDevice(deviceId('2911')), true);
-  ui.field('release', '9.0.1');
   ui.action('add-row', {'row-kind': 'interfaces'});
   ui.field('name', 'GigabitEthernet0/0', 'interfaces');
   ui.field('address', '192.168.10.1', 'interfaces');
@@ -218,8 +258,7 @@ check('initialization is one-time, accessible, local, and has no guessed ports o
   const firstMount = ui.get('builderDevicePicker');
   ui.api.init(ui.settings);
   assert.equal(ui.get('builderDevicePicker'), firstMount);
-  assert.equal(ui.get('builderVersion').value, '');
-  assert.deepEqual(ui.get('builderVersion').querySelectorAll('option').map(option => option.value), ['', '9', '8', '7', '6']);
+  assert.equal(ui.mount.querySelector('#builderVersion'), null);
   assert.equal(ui.get('builderGenerate').disabled, true);
   assert.equal(ui.get('builderCopy').disabled, true);
   assert.equal(ui.get('builderPreview').getAttribute('readonly'), '');
@@ -227,11 +266,12 @@ check('initialization is one-time, accessible, local, and has no guessed ports o
   assert.equal(ui.get('builderVerification').getAttribute('wrap'), 'off');
   assert.equal(ui.get('builderErrors').getAttribute('role'), 'alert');
   ui.api.addDevice(deviceId('2911'));
-  assert.equal(ui.find('[data-field="release"]').value, '');
+  assert.equal(ui.mount.querySelector('[data-field="release"]'), null);
+  assert(!Object.prototype.hasOwnProperty.call(ui.stored().instances[0], 'release'));
   assert.equal(ui.stored().instances[0].config.interfaces.length, 0);
   assert.equal(ui.stored().instances[0].config.routes.length, 0);
   assert.equal(ui.stored().instances[0].config.management.address, '');
-  assert.match(ui.get('builderContext').textContent, /Choose a Packet Tracer version/);
+  assert.match(ui.get('builderContext').textContent, /All versions: combined inventory/);
   assert.equal(ui.mount.querySelector('[data-field="enableRouting"]'), null);
   assert.equal(ui.mount.querySelector('[data-field="management.enabled"]'), null);
   for (const image of ui.mount.querySelectorAll('img')) assert(fs.existsSync(path.join(root, image.getAttribute('src'))), 'Missing local icon');
@@ -260,14 +300,15 @@ check('catalogue additions distinguish instances, do not navigate or silently cr
   assert.equal(ui.counts.at(-1), 4);
 });
 
-check('picker additions and local/global version selectors stay synchronized', () => {
+check('picker additions and builder context follow the single global version', () => {
   const ui = boot({major: ''});
   ui.get('builderDevicePicker').value = String(deviceId('2911'));
   ui.action('add-device');
   assert.equal(ui.stored().instances.length, 1);
-  const version = ui.get('builderVersion'); version.value = '8'; ui.emit('change', version);
-  assert.equal(ui.getVersion(), '8'); assert.equal(version.value, '8');
-  ui.setVersion('7'); assert.equal(version.value, '7');
+  ui.setVersion('8'); assert.equal(ui.getVersion(), '8');
+  assert.match(ui.get('builderContext').textContent, /Packet Tracer 8\.x/);
+  ui.setVersion('7'); assert.match(ui.get('builderContext').textContent, /Packet Tracer 7\.x/);
+  assert.equal(ui.mount.querySelector('#builderVersion'), null);
   ui.get('builderModulePicker').value = String(moduleId('HWIC-2T'));
   ui.action('add-part'); assert.equal(ui.stored().parts.length, 1);
   assert.equal(ui.stored().parts[0].instanceId, null);
@@ -357,7 +398,7 @@ check('router drafts retain removable invalid rows after EtherSwitch removal or 
   assert(restored.mount.querySelector('#builderRows-vlans'));
   assert.equal(restored.find('[data-action="add-row"][data-row-kind="vlans"]').disabled, true);
   assert.match(restored.get('builderContext').textContent, /remove VLAN creation rows/);
-  restored.field('release', '9.0.1');
+  restored.field('hostname', 'Restored');
   const restoredRows = restored.stored().instances[0].config.vlans;
   restored.action('remove-row', {'row-kind': 'vlans', 'row-id': restoredRows[0]._id});
   assert.equal(restored.stored().instances[0].config.vlans.length, 0);
@@ -375,7 +416,7 @@ check('all editable fields and row removal reach the generator contract', () => 
   ui.action('remove-row', {'row-kind': 'routes', 'row-id': config.routes[0]._id});
   assert.equal(ui.stored().instances[0].config.routes.length, 0);
   assert.equal(ui.get('builderPreview').value, '');
-  ui.api.addDevice(deviceId('2960-24TT')); ui.field('release', '9.0.1');
+  ui.api.addDevice(deviceId('2960-24TT'));
   ui.action('add-row', {'row-kind': 'vlans'}); ui.field('id', '10', 'vlans'); ui.field('name', 'Students', 'vlans');
   ui.action('add-row', {'row-kind': 'interfaces'}); ui.field('name', 'FastEthernet0/1', 'interfaces'); ui.field('vlan', '10', 'interfaces');
   ui.field('mode', 'trunk', 'interfaces'); ui.field('allowedVlans', '10,20', 'interfaces'); ui.field('nativeVlan', '10', 'interfaces');
@@ -388,53 +429,59 @@ check('all editable fields and row removal reach the generator contract', () => 
   assert.equal(ui.stored().instances.at(-1).config.enableRouting, true);
 });
 
-check('generation is explicitly untested and every edit invalidates copy/export', () => {
+check('only verified configuration cases enable output and every edit invalidates copy/export', () => {
   const ui = boot(); basicRouter(ui); ui.action('generate');
   assert.equal(ui.get('builderErrors').textContent, '');
-  assert.match(ui.get('builderPreview').value, /configure terminal/);
-  assert.match(ui.get('builderWarnings').textContent, /untested/i);
-  assert.match(ui.get('builderOutputStatus').textContent, /Untested/);
+  assertCliScript(ui.get('builderPreview').value);
+  assert.match(ui.get('builderWarnings').textContent, /plaintext credentials/i);
+  assert.match(ui.get('builderOutputStatus').textContent, /Verified configuration case/);
+  assert.match(ui.get('builderContext').textContent, /Current settings must match a recorded case/);
   assert.equal(ui.get('builderCopy').disabled, false);
   assert.match(ui.get('builderVerification').value, /show/);
   ui.field('description', 'Changed', 'interfaces');
   assert.equal(ui.get('builderPreview').value, ''); assert.equal(ui.get('builderVerification').value, '');
   assert.equal(ui.get('builderCopy').disabled, true); assert.equal(ui.get('builderDownload').disabled, true);
   ui.action('generate'); const format = ui.get('builderFormat'); format.value = 'cfg'; ui.emit('change', format);
-  assert(!ui.get('builderPreview').value.includes('configure terminal'));
+  assertCliScript(ui.get('builderPreview').value);
   assert.equal(ui.get('builderDownload').disabled, false);
   ui.field('mask', '255.0.255.0', 'interfaces'); ui.action('generate');
   assert(ui.get('builderErrors').textContent); assert.equal(ui.get('builderPreview').value, '');
   format.value = 'txt'; ui.emit('change', format); assert.equal(ui.get('builderPreview').value, '');
 });
 
-check('versions and release edits preserve configuration but invalidate confirmation and output', () => {
+check('global version changes preserve configurations and invalidate outputs and all confirmations', () => {
   const ui = boot(); basicRouter(ui); ui.action('generate');
   const hostname = ui.find('[data-field="hostname"]');
   ui.setVersion('8');
   assert.equal(ui.find('[data-field="hostname"]'), hostname);
-  assert.equal(ui.get('builderVersion').value, '8');
-  assert.equal(ui.find('[data-field="release"]').getAttribute('placeholder'), '8.2.2');
+  assert.equal(ui.mount.querySelector('#builderVersion'), null);
   assert.equal(ui.stored().instances[0].config.interfaces[0].address, '192.168.10.1');
-  assert.equal(ui.stored().instances[0].release, '9.0.1');
+  assert(!Object.prototype.hasOwnProperty.call(ui.stored().instances[0], 'release'));
   assert.equal(ui.find('[data-field="interfacesConfirmed"]').checked, false);
   assert.equal(ui.get('builderPreview').value, '');
-  ui.action('generate'); assert.match(ui.get('builderErrors').textContent, /release|confirmed/i);
-  ui.field('release', '8.2.2'); ui.field('interfacesConfirmed', true); ui.action('generate');
+  ui.action('generate'); assert.match(ui.get('builderErrors').textContent, /confirm/i);
+  ui.field('interfacesConfirmed', true); ui.action('generate');
   assert.equal(ui.get('builderErrors').textContent, '');
-  ui.field('release', '8.2.1'); assert.equal(ui.find('[data-field="interfacesConfirmed"]').checked, false);
-  ui.setVersion(''); ui.action('generate'); assert.match(ui.get('builderErrors').textContent, /Choose a Packet Tracer version/);
+  ui.setVersion(''); assert.equal(ui.find('[data-field="interfacesConfirmed"]').checked, false);
+  ui.field('interfacesConfirmed', true); ui.action('generate');
+  assert.match(ui.get('builderErrors').textContent, /All versions.*not executable CLI/i);
+  assert.equal(ui.get('builderGenerate').disabled, true);
+  assert.equal(ui.get('builderPreview').value, '');
+  assert.equal(ui.get('builderBom').disabled, false);
 });
 
-check('unsupported and unknown devices remain list entries without a false certified result', () => {
+check('distinct ASA adapters and unknown availability never imply certified results', () => {
   const ui = boot(); ui.api.addDevice(deviceId('ASA5506-X'));
-  assert.equal(ui.get('builderGenerate').disabled, true);
-  assert.match(ui.get('builderContext').textContent, /unavailable for this device/);
+  assert.equal(ui.get('builderGenerate').disabled, false);
+  assert(ui.mount.querySelector('#builderConfig-asa'));
+  assert.equal(ui.mount.querySelector('#builderRows-interfaces'), null);
+  assert.equal(ui.mount.querySelector('[data-config-path="system.ssh.enabled"]'), null);
   assert.equal(ui.stored().instances.length, 1);
-  ui.api.addDevice(deviceId('ISR4321')); ui.setVersion('6');
-  assert.match(ui.get('builderContext').textContent, /availability is not verified/);
-  ui.field('release', '6.3'); ui.action('generate');
-  assert.match(ui.get('builderWarnings').textContent + ui.get('builderErrors').textContent, /availability|unknown|unverified|not verified/i);
-  assert(!/certified/i.test(ui.get('builderOutputStatus').textContent));
+  const unknown = boot({productionEvidence: true, major: '6'}); unknown.api.addDevice(deviceId('ISR4321'));
+  assert.match(unknown.get('builderContext').textContent, /availability is not verified/);
+  unknown.action('generate');
+  assert.match(unknown.get('builderContext').textContent + unknown.get('builderErrors').textContent, /availability|unknown|unverified|not verified/i);
+  assert(!/certified/i.test(unknown.get('builderOutputStatus').textContent));
 });
 
 check('quantities enforce integer bounds and only selected-major compatibility maxima', () => {
@@ -458,7 +505,7 @@ check('quantities enforce integer bounds and only selected-major compatibility m
     assert.equal(quantity.getAttribute('aria-invalid'), 'true');
     assert.equal(ui.stored().parts[0].quantity, 2);
   }
-  ui.field('release', '9.0.1'); ui.action('generate'); assert.match(ui.get('builderErrors').textContent, /Correct invalid part/);
+  ui.action('generate'); assert.match(ui.get('builderErrors').textContent, /Correct invalid part/);
   ui.setVersion('8');
   const rebuilt = ui.find(`[data-part-field="quantity"][data-part-id="${part.id}"]`);
   assert.equal(rebuilt.value, '2');
@@ -466,7 +513,7 @@ check('quantities enforce integer bounds and only selected-major compatibility m
   rebuilt.value = '3'; ui.emit('input', rebuilt);
   assert.equal(rebuilt.getAttribute('aria-invalid'), null);
   assert.equal(ui.stored().parts[0].quantity, 3);
-  ui.field('release', '8.2.2'); ui.action('generate');
+  ui.action('generate');
   assert(!/Correct invalid part/.test(ui.get('builderErrors').textContent));
   ui.setVersion('9'); ui.action('generate'); assert.match(ui.get('builderErrors').textContent, /recorded maximum is 2/);
 });
@@ -494,7 +541,8 @@ check('part attachment errors stay visible, correcting them is possible, and agg
 });
 
 check('same-model part rows aggregate for generation without changing the cart', () => {
-  const ui = boot(); ui.api.addDevice(deviceId('1841')); ui.field('release', '9.0.1');
+  let received;
+  const ui = boot({engineOverride: engine => ({...engine, generate(item, model, context) { received = JSON.parse(JSON.stringify(item)); return engine.generate(item, model, context); }})}); ui.api.addDevice(deviceId('1841'));
   ui.api.addModule(moduleId('HWIC-2T'), deviceId('1841'));
   ui.api.addModule(moduleId('HWIC-2T'));
   const loose = ui.stored().parts.find(part => part.instanceId === null);
@@ -502,7 +550,7 @@ check('same-model part rows aggregate for generation without changing the cart',
   attachment.value = ui.stored().instances[0].id; ui.emit('change', attachment);
   ui.action('generate');
   assert.equal(ui.get('builderErrors').textContent, '');
-  assert.match(ui.get('builderPreview').value, new RegExp(moduleId('HWIC-2T') + ' x 2'));
+  assert.deepEqual(received.modules, [{moduleId: moduleId('HWIC-2T'), quantity: 2}]);
   assert.equal(ui.stored().parts.length, 2);
   assert(ui.stored().parts.every(part => part.quantity === 1));
 });
@@ -542,15 +590,16 @@ check('duplicate, remove and confirmed clear preserve distinct instance configur
 
 check('versioned persistence restores only whitelisted fields, not output or confirmations', () => {
   const ui = boot(); basicRouter(ui); ui.api.addModule(moduleId('HWIC-2T'), deviceId('2911')); ui.action('generate');
-  const saved = ui.stored(); saved.instances[0].config.password = 'must-not-survive'; saved.instances[0].config.management.secret = 'must-not-survive';
+  const saved = ui.stored(); saved.instances[0].config.password = 'must-not-survive'; saved.instances[0].config.management.secret = 'must-not-survive'; saved.instances[0].release = '9.0.1';
   ui.storage.set(storageKey, JSON.stringify(saved));
   const restored = boot({storage: ui.storage});
-  assert.equal(restored.find('[data-field="release"]').value, '9.0.1');
+  assert.equal(restored.mount.querySelector('[data-field="release"]'), null);
   assert.equal(restored.find('[data-field="interfacesConfirmed"]').checked, false);
   assert.equal(restored.get('builderPreview').value, '');
   assert.equal(restored.get('builderCopy').disabled, true);
   restored.field('hostname', 'Restored');
   assert(!restored.storage.get(storageKey).includes('must-not-survive'));
+  assert(!Object.prototype.hasOwnProperty.call(restored.stored().instances[0], 'release'));
   assert.equal(restored.stored().parts[0].instanceId, restored.stored().instances[0].id);
   for (const raw of ['{', JSON.stringify({schema: 9, instances: [], parts: []}), 'x'.repeat(100001)]) {
     const invalid = boot({storage: new Map([[storageKey, raw]])});
@@ -569,6 +618,7 @@ check('versioned persistence restores only whitelisted fields, not output or con
 
 check('clipboard API, fallback and clear failure state operate without stale previews', async () => {
   const ui = boot(); basicRouter(ui); ui.action('generate'); const text = ui.get('builderPreview').value;
+  assertCliScript(text);
   ui.action('copy'); await new Promise(resolve => setImmediate(resolve)); assert.equal(ui.clipboard[0], text); assert.match(ui.get('builderOutputStatus').textContent, /copied/);
   ui.field('hostname', 'NewName'); ui.action('copy'); await Promise.resolve(); assert.equal(ui.clipboard.length, 1);
   const fallback = boot({clipboard: false, execCopy: true}); basicRouter(fallback); fallback.action('generate');
@@ -588,8 +638,10 @@ check('txt/cfg downloads use safe filenames and revoke Blob URLs; BOM resists CS
   const ui = boot(); basicRouter(ui); ui.action('generate'); ui.action('download');
   const first = ui.document.downloads[0]; assert(first.filename.endsWith('.txt')); assert(ui.revoked.includes(first.href));
   assert.equal(ui.blobs.get(first.href).text, ui.get('builderPreview').value);
+  assertCliScript(ui.blobs.get(first.href).text);
   const format = ui.get('builderFormat'); format.value = 'cfg'; ui.emit('change', format); ui.action('download');
   assert(ui.document.downloads[1].filename.endsWith('.cfg'));
+  assertCliScript(ui.blobs.get(ui.document.downloads[1].href).text);
   ui.field('hostname', 'Changed'); ui.action('download'); assert.equal(ui.document.downloads.length, 2);
   for (const value of ['=1+1', '\n=SUM(1,1)', '   =1+1', '\t@bad']) {
     ui.field('hostname', value); ui.action('bom');
@@ -597,6 +649,284 @@ check('txt/cfg downloads use safe filenames and revoke Blob URLs; BOM resists CS
     assert(last.filename.endsWith('.csv')); assert(csv.includes('"\'' + value.replace(/"/g, '""') + '"'), 'Unescaped spreadsheet formula');
     assert(ui.revoked.includes(last.href));
   }
+});
+
+check('both CLI formats retain command boundaries in preview, clipboard and downloads for IOS and ASA', async () => {
+  for (const name of ['2911', '2960-24TT', 'ASA5506-X']) {
+    const ui = boot(); ui.api.addDevice(deviceId(name));
+    assert.match(ui.get('builderFormat').querySelector('option[value="cfg"]').textContent, /CLI script/);
+    for (const extension of ['txt', 'cfg']) {
+      const format = ui.get('builderFormat'); format.value = extension; ui.emit('change', format); ui.action('generate');
+      const text = ui.get('builderPreview').value;
+      assert.equal(ui.get('builderErrors').textContent, ''); assertCliScript(text);
+      assert.match(text, /^hostname /m);
+      ui.action('copy'); await new Promise(resolve => setImmediate(resolve));
+      assert.equal(ui.clipboard.at(-1), text); assertCliScript(ui.clipboard.at(-1));
+      ui.action('download'); const file = ui.document.downloads.at(-1);
+      assert(file.filename.endsWith('.' + extension));
+      assert.equal(ui.blobs.get(file.href).text, text); assertCliScript(ui.blobs.get(file.href).text);
+    }
+  }
+});
+
+check('global All to 9 to 6 to All refreshes coverage, keeps the cart and resets every confirmation', () => {
+  const ui = boot({major: ''}); basicRouter(ui);
+  const first = ui.stored().instances[0].id;
+  ui.api.addDevice(deviceId('ISR4321')); ui.field('interfacesConfirmed', true);
+  ui.action('select', {'instance-id': first}); ui.field('interfacesConfirmed', true); ui.action('generate');
+  const ids = ui.stored().instances.map(instance => instance.id);
+  assert.match(ui.get('builderCoverage').innerHTML, /Unverified combined draft/);
+  for (const version of ['9', '6', '']) {
+    ui.setVersion(version);
+    assert.deepEqual(ui.stored().instances.map(instance => instance.id), ids);
+    assert(ui.stored().instances.every(instance => instance.config.interfacesConfirmed === false));
+    assert.equal(ui.get('builderPreview').value, ''); assert.equal(ui.get('builderVerification').value, '');
+    assert.equal(ui.get('builderCopy').disabled, true); assert.equal(ui.get('builderDownload').disabled, true);
+    assert.match(ui.get('builderCoverage').innerHTML, version ? /template untested/ : /Unverified combined draft/);
+    assert.equal(ui.stored().instances[0].config.interfaces[0].address, '192.168.10.1');
+  }
+});
+
+check('global version hides unavailable additions but retains flagged existing instances and unknown parts', () => {
+  const ui = boot({major: ''}); ui.api.addDevice(deviceId('C8200')); const id = ui.stored().instances[0].id;
+  ui.setVersion('8');
+  assert(!ui.get('builderDevicePicker').querySelectorAll('option').some(option => option.value === String(deviceId('C8200'))));
+  assert.equal(ui.api.addDevice(deviceId('C8200')), false);
+  assert.equal(ui.stored().instances[0].id, id);
+  assert.match(ui.get('builderDevices').innerHTML, /not available in 8\.x/);
+  assert.equal(ui.get('builderGenerate').disabled, true); ui.action('generate'); assert.equal(ui.get('builderPreview').value, '');
+  assert(ui.get('builderModulePicker').querySelector('optgroup[label="Not verified"]'));
+  const db = JSON.parse(JSON.stringify(catalogue)); const model = db.devices.find(item => item.pt_name === '1841');
+  model.version_profiles['9'].modules = [{module_id: moduleId('HWIC-2T'), compatible: true, major_version: 9, verification_status: 'Verified', max_quantity: 2}];
+  model.version_profiles['6'].modules = [{module_id: moduleId('HWIC-2T'), compatible: true, major_version: 9, verification_status: 'Verified', max_quantity: 2}];
+  const scoped = boot({db, major: '6'});
+  const option = scoped.get('builderModulePicker').querySelector(`option[value="${moduleId('HWIC-2T')}"]`);
+  assert.match(option.textContent, /not verified for 6\.x/);
+});
+
+check('nested IOS services generate typed routing, DHCP, ACL, PAT and session-only credentials', () => {
+  const ui = boot(); basicRouter(ui);
+  const first = ui.stored().instances[0].config.interfaces[0]._id;
+  ui.config(`interfaces.@${first}.natRole`, 'inside');
+  ui.action('add-row', {'row-kind': 'interfaces'});
+  ui.field('name', 'GigabitEthernet0/1', 'interfaces', 1); ui.field('address', '203.0.113.2', 'interfaces', 1); ui.field('mask', '255.255.255.252', 'interfaces', 1);
+  const second = ui.stored().instances[0].config.interfaces[1]._id;
+  ui.config(`interfaces.@${second}.natRole`, 'outside');
+  const domain = ui.config('system.domainName', 'lab.test'); domain.focus();
+  ui.config('system.domainName', 'network.lab.test'); assert.equal(ui.document.activeElement, domain); assert.equal(ui.find('[data-config-path="system.domainName"]'), domain);
+  ui.config('system.enableSecret', 'EnableSessionOnly42');
+  ui.action('add-config-row', {'config-list': 'system.users'});
+  const user = ui.stored().instances[0].config.system.users[0]._id;
+  ui.config(`system.users.@${user}.name`, 'operator'); ui.config(`system.users.@${user}.secret`, 'UserSessionOnly42'); ui.config(`system.users.@${user}.privilege`, '15');
+  ui.config('system.ssh.enabled', true);
+  assert.equal(ui.find('[data-config-path="system.enableSecret"]').type, 'password');
+  assert(!ui.storage.get(storageKey).includes('EnableSessionOnly42')); assert(!ui.storage.get(storageKey).includes('UserSessionOnly42'));
+  ui.config('protocols.ospf.enabled', true); ui.config('protocols.ospf.routerId', '1.1.1.1');
+  ui.action('add-config-row', {'config-list': 'protocols.ospf.networks'});
+  const ospf = ui.stored().instances[0].config.protocols.ospf.networks[0]._id;
+  ui.config(`protocols.ospf.networks.@${ospf}.network`, '192.168.10.0'); ui.config(`protocols.ospf.networks.@${ospf}.wildcard`, '0.0.0.255'); ui.config(`protocols.ospf.networks.@${ospf}.area`, '0');
+  ui.action('add-config-row', {'config-list': 'dhcp.pools'});
+  const pool = ui.stored().instances[0].config.dhcp.pools[0]._id;
+  for (const [key, value] of Object.entries({name: 'LAN', network: '192.168.10.0', mask: '255.255.255.0', gateway: '192.168.10.1', dns: '8.8.8.8', domain: 'lab.test'})) ui.config(`dhcp.pools.@${pool}.${key}`, value);
+  ui.action('add-config-row', {'config-list': 'acls'});
+  const acl = ui.stored().instances[0].config.acls[0]._id; ui.config(`acls.@${acl}.name`, 'LAN');
+  ui.action('add-config-row', {'config-list': `acls.@${acl}.entries`});
+  const entry = ui.stored().instances[0].config.acls[0].entries[0]._id;
+  ui.config(`acls.@${acl}.entries.@${entry}.source`, '192.168.10.0'); ui.config(`acls.@${acl}.entries.@${entry}.sourceWildcard`, '0.0.0.255');
+  ui.action('add-config-row', {'config-list': 'nat.pat'}); const pat = ui.stored().instances[0].config.nat.pat[0]._id;
+  ui.config(`nat.pat.@${pat}.acl`, 'LAN'); ui.config(`nat.pat.@${pat}.interface`, 'GigabitEthernet0/1');
+  ui.field('interfacesConfirmed', true); ui.action('generate');
+  assert.equal(ui.get('builderErrors').textContent, '');
+  const text = ui.get('builderPreview').value;
+  assert.match(text, /router ospf 1/); assert.match(text, /ip dhcp pool LAN/); assert.match(text, /ip access-list standard LAN/);
+  assert.match(text, /ip nat inside source list LAN interface GigabitEthernet0\/1 overload/);
+  assert.match(text, /EnableSessionOnly42/); assert.match(text, /UserSessionOnly42/);
+  assert.match(ui.get('builderWarnings').textContent, /plaintext credentials/i);
+  const instance = ui.stored().instances[0]; ui.action('duplicate', {'instance-id': instance.id});
+  assert.equal(ui.find('[data-config-path="system.enableSecret"]').value, '');
+  assert.equal(ui.find(`[data-config-path="system.users.@${ui.stored().instances.at(-1).config.system.users[0]._id}.secret"]`).value, '');
+  assert.match(ui.get('builderSelectionStatus').textContent, /Credentials.*not copied/);
+});
+
+check('routed SVI services and identity confirmation work on multilayer switches', () => {
+  const ui = boot(); ui.api.addDevice(deviceId('3650-24PS')); ui.field('enableRouting', true);
+  ui.action('add-row', {'row-kind': 'vlans'}); ui.field('id', '10', 'vlans'); ui.field('name', 'Students', 'vlans');
+  ui.action('add-config-row', {'config-list': 'svis'}); const id = ui.stored().instances[0].config.svis[0]._id;
+  const prefix = `svis.@${id}`;
+  ui.config(prefix + '.vlan', '10'); ui.config(prefix + '.address', '192.168.10.2'); ui.config(prefix + '.mask', '255.255.255.0');
+  ui.config(prefix + '.helperAddress', '192.168.20.1'); ui.config(prefix + '.hsrp.enabled', true); ui.config(prefix + '.hsrp.address', '192.168.10.1'); ui.config(prefix + '.hsrp.preempt', true);
+  ui.field('interfacesConfirmed', true); ui.action('generate');
+  assert.equal(ui.get('builderErrors').textContent, ''); assert.match(ui.get('builderPreview').value, /interface Vlan10/);
+  assert.match(ui.get('builderPreview').value, /ip helper-address 192\.168\.20\.1/); assert.match(ui.get('builderPreview').value, /standby 1 ip 192\.168\.10\.1/);
+  ui.config(prefix + '.vlan', '20'); assert.equal(ui.find('[data-field="interfacesConfirmed"]').checked, false);
+  assert.equal(ui.get('builderPreview').value, '');
+});
+
+check('ASA uses distinct typed interfaces, routes, NAT objects and password controls', () => {
+  const ui = boot(); ui.api.addDevice(deviceId('ASA5506-X'));
+  ui.action('add-config-row', {'config-list': 'system.users'}); const user = ui.stored().instances[0].config.system.users[0]._id;
+  assert.equal(ui.mount.querySelector(`[data-config-path="system.users.@${user}.privilege"]`), null);
+  assert.equal(ui.mount.querySelector('[data-config-path="system.ssh.enabled"]'), null);
+  ui.config(`system.users.@${user}.name`, 'operator'); ui.config(`system.users.@${user}.secret`, 'ASASessionPassword42');
+  ui.config('system.enableSecret', 'ASAEnablePassword42');
+  for (const data of [{name: 'GigabitEthernet1/1', nameif: 'inside', securityLevel: '100', address: '192.168.1.1', mask: '255.255.255.0'}, {name: 'GigabitEthernet1/2', nameif: 'outside', securityLevel: '0', address: '203.0.113.2', mask: '255.255.255.252'}]) {
+    ui.action('add-config-row', {'config-list': 'asa.interfaces'}); const id = ui.stored().instances[0].config.asa.interfaces.at(-1)._id;
+    for (const [key, value] of Object.entries(data)) ui.config(`asa.interfaces.@${id}.${key}`, value);
+  }
+  ui.action('add-config-row', {'config-list': 'asa.routes'}); const route = ui.stored().instances[0].config.asa.routes[0]._id;
+  for (const [key, value] of Object.entries({nameif: 'outside', network: '0.0.0.0', mask: '0.0.0.0', nextHop: '203.0.113.1'})) ui.config(`asa.routes.@${route}.${key}`, value);
+  ui.action('add-config-row', {'config-list': 'asa.objects'}); const object = ui.stored().instances[0].config.asa.objects[0]._id;
+  for (const [key, value] of Object.entries({name: 'LAN', network: '192.168.1.0', mask: '255.255.255.0', inside: 'inside', outside: 'outside', dynamicInterface: true})) ui.config(`asa.objects.@${object}.${key}`, value);
+  ui.field('interfacesConfirmed', true); ui.action('generate');
+  assert.equal(ui.get('builderErrors').textContent, '');
+  assert.match(ui.get('builderPreview').value, /nameif inside/); assert.match(ui.get('builderPreview').value, /route outside 0\.0\.0\.0 0\.0\.0\.0 203\.0\.113\.1/);
+  assert.match(ui.get('builderPreview').value, /nat \(inside,outside\) dynamic interface/); assert(!/username operator.*privilege/.test(ui.get('builderPreview').value));
+  assert(!ui.storage.get(storageKey).includes('ASASessionPassword42')); assert(!ui.storage.get(storageKey).includes('ASAEnablePassword42'));
+});
+
+check('all GUI adapters provide typed presets, honest TXT worksheets, and session-only values', () => {
+  for (const name of ['AccessPoint-PT', 'LAP-PT', '3702i', 'WLC-2504', 'WLC-3504', 'HomeRouter', 'MX65W', 'Cloud-PT']) {
+    const ui = boot({major: ''}); ui.api.addDevice(deviceId(name));
+    const info = ui.window.PTConfigBuilder.describe(ui.db.devices.find(model => model.pt_name === name), {major: ''});
+    assert.equal(info.platform, 'gui-plan'); assert(info.worksheetFields.length);
+    assert.equal(ui.mount.querySelector('#builderRows-interfaces'), null);
+    assert.equal(ui.mount.querySelector('[data-config-path="system.enableSecret"]'), null);
+    assert.equal(ui.get('builderFormat').value, 'txt'); assert.equal(ui.get('builderFormat').querySelector('option[value="cfg"]').disabled, true);
+    for (const definition of info.worksheetFields) {
+      const row = ui.stored().instances[0].config.settings.find(setting => setting.label === definition.label);
+      assert(row, 'Preset not seeded: ' + name + ' / ' + definition.label);
+      const control = ui.find(`[data-config-path="settings.@${row._id}.value"]`);
+      assert(control.closest('label'));
+      if (definition.readOnly) { assert.equal(control.getAttribute('readonly'), ''); continue; }
+      const value = definition.type === 'checkbox' ? true : definition.choices ? definition.choices[0] : definition.type === 'number' ? '1' : definition.type === 'password' ? 'WorksheetSessionSecret42' : 'ManualValue';
+      ui.config(`settings.@${row._id}.value`, value);
+      if (definition.type === 'checkbox') assert.equal(control.dataset.valueType, 'worksheet-checkbox');
+      if (definition.type === 'password') assert.equal(control.type, 'password');
+    }
+    if (name === 'LAP-PT' || name === '3702i') assert(!ui.stored().instances[0].config.settings.some(row => row.label === 'SSID'));
+    ui.action('generate'); assert.equal(ui.get('builderErrors').textContent, '', name);
+    assert.match(ui.get('builderPreview').value, /manual configuration worksheet/i); assert(!/^configure terminal$/m.test(ui.get('builderPreview').value));
+    assert.equal(ui.get('builderOutputStatus').textContent, 'Manual configuration worksheet');
+    assert.equal(ui.get('builderVerification').closest('details').querySelector('summary').textContent, 'Verification checklist');
+    ui.action('download'); assert(ui.document.downloads.at(-1).filename.endsWith('.txt'));
+    assert(ui.stored().instances[0].config.settings.every(row => row.value === ''));
+    assert(!ui.storage.get(storageKey).includes('WorksheetSessionSecret42'));
+    assert(!ui.storage.get(storageKey).includes('ManualValue'));
+  }
+});
+
+check('nested add/remove and preset setting controls repair keyboard focus', () => {
+  const ui = boot(); ui.api.addDevice(deviceId('2911'));
+  ui.action('add-config-row', {'config-list': 'acls'}); const acl = ui.stored().instances[0].config.acls[0]._id;
+  ui.action('add-config-row', {'config-list': `acls.@${acl}.entries`}); const entry = ui.stored().instances[0].config.acls[0].entries[0]._id;
+  assert(ui.mount.contains(ui.document.activeElement)); assert(ui.document.activeElement.closest(`[data-config-row="acls.@${acl}.entries.@${entry}"]`));
+  ui.action('remove-config-row', {'config-list': `acls.@${acl}.entries`, 'row-id': entry});
+  assert(ui.mount.contains(ui.document.activeElement)); assert.equal(ui.document.activeElement.dataset.action, 'add-config-row');
+  ui.api.addDevice(deviceId('AccessPoint-PT')); const setting = ui.stored().instances.at(-1).config.settings.find(row => row.label === 'SSID');
+  ui.action('remove-config-row', {'config-list': 'settings', 'row-id': setting._id});
+  ui.get('builderSettingPicker').value = 'SSID'; ui.action('add-setting');
+  assert(ui.mount.contains(ui.document.activeElement)); assert.equal(ui.document.activeElement.dataset.configPath?.split('.').at(-1), 'value');
+});
+
+check('all 34 component editors render platform sections and 52 honest coverage rows', () => {
+  const ui = boot({major: ''});
+  for (const model of ui.db.devices) {
+    assert.equal(ui.api.addDevice(model.device_id), true);
+    const info = ui.window.PTConfigBuilder.describe(model, {major: ''});
+    assert.equal(info.coverage.length, 52);
+    assert.equal(ui.get('builderCoverage').querySelectorAll('tbody tr').length, 52);
+    assert.equal(ui.mount.querySelector('#builderVersion'), null); assert.equal(ui.mount.querySelector('[data-field="release"]'), null);
+    for (const section of info.sections.filter(key => ['system', 'svis', 'protocols', 'switching', 'dhcp', 'acls', 'nat', 'asa', 'settings'].includes(key))) assert(ui.mount.querySelector('#builderConfig-' + section), model.pt_name + ' / ' + section);
+    for (const input of ui.mount.querySelectorAll('input')) assert(input.closest('label'), model.pt_name + ': unlabelled input');
+    for (const control of ui.mount.querySelectorAll('select')) assert(control.closest('label'), model.pt_name + ': unlabelled select');
+    assert.match(ui.get('builderCoverage').innerHTML, /Unverified combined draft/);
+  }
+});
+
+check('empty production evidence blocks every CLI model without confusing inventory with command verification', () => {
+  for (const major of ['', '6', '7', '8', '9']) {
+    const ui = boot({productionEvidence: true, major: ''});
+    for (const model of ui.db.devices.filter(model => ui.window.PTConfigBuilder.describe(model).cli)) {
+      ui.setVersion(''); ui.api.addDevice(model.device_id); ui.setVersion(major);
+      assert.equal(ui.get('builderGenerate').disabled, true, model.pt_name + ' / ' + major);
+      assert.match(ui.get('builderContext').textContent, /Command verification: Unknown/);
+      assert.match(ui.get('builderErrors').textContent, /CLI generation blocked/);
+      ui.get('builderGenerate').disabled = false; ui.action('generate');
+      assert.equal(ui.get('builderPreview').value, ''); assert.equal(ui.get('builderVerification').value, '');
+      assert.equal(ui.get('builderCopy').disabled, true); assert.equal(ui.get('builderDownload').disabled, true);
+      ui.action('copy'); ui.action('download');
+      assert.equal(ui.clipboard.length, 0); assert.equal(ui.document.downloads.length, 0);
+    }
+    assert.equal(ui.get('builderBom').disabled, false); ui.action('bom');
+    assert.equal(ui.document.downloads.length, 1);
+  }
+  const ui = boot({productionEvidence: true}); ui.api.addDevice(deviceId('2911'));
+  assert.match(ui.get('builderContext').textContent, /Inventory observed release: 9\.0\.1/);
+  assert.match(ui.get('builderContext').textContent, /Command verification: Unknown/);
+  assert(!/Tested configuration cases/.test(ui.get('builderContext').textContent));
+});
+
+check('a recorded model case does not authorize an unrecorded current configuration', () => {
+  const ui = boot({exactVerification: true}); basicRouter(ui);
+  assert.equal(ui.get('builderGenerate').disabled, false);
+  assert.match(ui.get('builderContext').textContent, /Current settings must match a recorded case/);
+  ui.action('generate');
+  assert.match(ui.get('builderErrors').textContent, /recorded|verified|tested|match/i);
+  assert.equal(ui.get('builderPreview').value, ''); assert.equal(ui.get('builderVerification').value, '');
+  assert.equal(ui.get('builderCopy').disabled, true); assert.equal(ui.get('builderDownload').disabled, true);
+});
+
+check('bare successful text and mismatched verified metadata cannot enable preview, copy or export', () => {
+  const variants = [undefined, {status: 'Unknown', observedRelease: '9.0.1', recordId: 'fake'}, {status: 'Verified', observedRelease: '8.2.2', recordId: 'fake'}, {status: 'Verified', observedRelease: '9.2.1', recordId: 'fake'}, {status: 'Verified', observedRelease: '9.0.1'}, {status: 'Verified', observedRelease: '9.0.1', recordId: ''}];
+  for (const verification of variants) {
+    const ui = boot({engineOverride: engine => ({...engine, generate() { return {ok: true, text: 'hostname Unsafe\n', filename: 'unsafe.txt', verificationText: 'show running-config\n', outputKind: 'cli', errors: [], warnings: [], verification}; }})});
+    basicRouter(ui); ui.action('generate');
+    assert.match(ui.get('builderErrors').textContent, /matching verified command evidence/);
+    assert.equal(ui.get('builderPreview').value, ''); assert.equal(ui.get('builderVerification').value, '');
+    assert.equal(ui.get('builderCopy').disabled, true); assert.equal(ui.get('builderDownload').disabled, true);
+    ui.action('copy'); ui.action('download');
+    assert.equal(ui.clipboard.length, 0); assert.equal(ui.document.downloads.length, 0);
+  }
+});
+
+check('missing malformed and unavailable status evidence fails closed even through a forced generate action', () => {
+  for (const status of [undefined, {status: 'Verified', observedRelease: null}, {status: 'Verified', observedRelease: '9'}, {status: 'Verified', observedRelease: '8.2.2'}, {status: 'Partial', observedRelease: '9.0.1'}]) {
+    let calls = 0;
+    const ui = boot({engineOverride: engine => ({...engine, verificationStatus: () => status, generate() { calls++; return {ok: true, text: 'unsafe'}; }})});
+    basicRouter(ui); assert.equal(ui.get('builderGenerate').disabled, true);
+    ui.get('builderGenerate').disabled = false; ui.action('generate');
+    assert.equal(calls, 0); assert.match(ui.get('builderErrors').textContent, /CLI generation blocked/);
+    assert.equal(ui.get('builderPreview').value, '');
+  }
+  const missing = boot({engineOverride: engine => ({...engine, verificationStatus: undefined})}); basicRouter(missing);
+  assert.equal(missing.get('builderGenerate').disabled, true);
+  const throwing = boot({engineOverride: engine => ({...engine, verificationStatus() { throw new Error('Missing evidence'); }})}); basicRouter(throwing);
+  assert.equal(throwing.get('builderGenerate').disabled, true); assert.match(throwing.get('builderErrors').textContent, /unavailable/);
+});
+
+check('copy and download recheck evidence and global context before using a prior verified result', async () => {
+  let trusted = true;
+  const ui = boot({engineOverride: engine => ({...engine, verificationStatus(model, context) { return trusted ? engine.verificationStatus(model, context) : {status: 'Unknown', observedRelease: null, reason: 'Evidence withdrawn.'}; }})});
+  basicRouter(ui); ui.action('generate'); assert(ui.get('builderPreview').value);
+  trusted = false; ui.action('copy'); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(ui.clipboard.length, 0); assert.equal(ui.get('builderPreview').value, '');
+  assert.equal(ui.get('builderCopy').disabled, true); assert.equal(ui.get('builderDownload').disabled, true);
+  assert.match(ui.get('builderErrors').textContent, /Evidence withdrawn/);
+  const changed = boot(); basicRouter(changed); changed.action('generate');
+  changed.settings.getVersion = () => '8'; changed.action('download');
+  assert.equal(changed.document.downloads.length, 0); assert.equal(changed.get('builderPreview').value, '');
+});
+
+check('manual GUI worksheets remain honest TXT exports with empty production command records', () => {
+  const ui = boot({productionEvidence: true, major: ''}); ui.api.addDevice(deviceId('AccessPoint-PT'));
+  const ssid = ui.stored().instances[0].config.settings.find(row => row.label === 'SSID');
+  ui.config(`settings.@${ssid._id}.value`, 'Manual plan');
+  assert.equal(ui.get('builderGenerate').disabled, false); ui.action('generate');
+  assert.match(ui.get('builderPreview').value, /Not executable CLI/);
+  assert.match(ui.get('builderOutputStatus').textContent, /Manual configuration worksheet/);
+  assert(!/^hostname |^configure terminal$/m.test(ui.get('builderPreview').value));
+  ui.action('download'); assert(ui.document.downloads[0].filename.endsWith('.txt'));
+  assert.equal(ui.stored().instances[0].config.settings.find(row => row.label === 'SSID').value, '');
 });
 
 (async () => {

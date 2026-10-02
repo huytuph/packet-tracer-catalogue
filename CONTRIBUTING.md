@@ -46,7 +46,7 @@ tools\rebuild.bat
 
 Availability verification is separate from interface, feature and module verification. Do not copy capabilities between major versions just because the device exists in both. Add technical records with their own version and source; retain real-hardware information as version-neutral Partial context.
 
-Both rebuild scripts run `tests/validate_catalogue.py`, `tests/test_version_profiles.py`, `tests/validate_generated_data.py` and `tests/test_generated_data.py`. When Node is available they also syntax-check the runtime scripts and run `tests/validate_runtime.js`, `tests/validate_config_builder.js` and `tests/validate_builder_ui.js`. UI tests use DOM stubs; they do not replace visual browser checks or execution in Packet Tracer. Maintainers need Python 3.10 or newer with SQLite FTS5 support; no pip packages are required. CI installs Node and runs these checks through the rebuild script.
+Both rebuild scripts run `tests/validate_catalogue.py`, `tests/test_version_profiles.py`, `tests/validate_generated_data.py`, `tests/test_generated_data.py`, `tests/validate_command_verification.py` and `tests/test_command_verification.py`. When Node is available they also syntax-check the runtime scripts and run `tests/validate_runtime.js`, `tests/validate_config_builder.js` and `tests/validate_builder_ui.js`. UI tests use DOM stubs; they do not replace visual browser checks or execution in Packet Tracer. Maintainers need Python 3.10 or newer with SQLite FTS5 support; no pip packages are required. CI installs Node and runs these checks through the rebuild script.
 
 The generated-data checker compares existing outputs with a fresh temporary build without overwriting them. SQLite comparison covers logical schema and public table rows, including FTS records; file headers, page layout and FTS shadow internals are not compared. The browser bundle must match exactly. CI checks generated data before rebuilding so a stale committed artifact cannot be hidden by the rebuild, then checks the JavaScript diff.
 
@@ -71,7 +71,7 @@ Optional hyperlinks to external Cisco sources are fine; the catalogue itself mus
 
 ## CLI builder changes
 
-Keep command generation in the dependency-free `js/config-builder.js` engine and UI behavior in `js/builder-ui.js`. Run the focused checks with Node:
+Keep command generation in `js/config-builder.js` and UI behavior in `js/builder-ui.js`. Use the bundled `assets/vendor/ipaddr.js` for address parsing; preserve its license and provenance when updating it. Run the focused checks with Node:
 
 ```text
 node --check js/config-builder.js
@@ -81,20 +81,26 @@ node tests/validate_builder_ui.js
 ```
 
 - Cite command templates and preserve their device/version limits. Documentation-supported syntax is not proof that the generated configuration runs in Packet Tracer.
-- Initial templates cover hostnames, IPv4 ports, switch VLAN/access/trunk settings (numeric VLANs 1-1001), Layer 2 management SVIs and static routes for 12 classic IOS models. Router switched ports require a selected EtherSwitch module and reference existing VLANs only; other models remain selection-list only.
-- Test templates in the exact installed Packet Tracer release before describing their generated commands as runtime-verified. Record the model, release, commands, results and source; automated generator tests alone do not justify a Verified claim.
-- Cover invalid input, command injection, unavailable/unknown capability records, version changes and stale previews in regression tests.
+- Maintain the [34-device, 12-module and 52-feature coverage mapping](docs/BUILDER_COVERAGE.md). Use platform-specific CLI templates or manual worksheets; do not imply that every simulator command has a typed control. Router switched ports require confirmed built-in switching ports or a selected EtherSwitch module and reference existing VLANs only.
+- Test templates in the exact installed Packet Tracer release before describing their generated commands as runtime-verified. Record the model, release/image, modules and port roles, ordered command variants, results and transcript; automated generator tests or official command references alone do not justify a runtime Verified claim. There are currently no runtime-verified command records.
+- Keep the global selector authoritative. All versions is a combined planning/manual-worksheet context, not a verified CLI target. Require matching exact-release/model/variant runtime evidence before CLI generation or export. Cover invalid input, command injection, unavailable/unknown capability records, version changes, stale previews and verification bypasses in regression tests.
+- Follow the [command evidence contract](docs/COMMAND_VERIFICATION.md). Keep one common observed release per major across all models, store genuine reviewed transcripts under `evidence/runtime/`, and run both command-verification Python checks before publishing records. Exact-case evidence is not a guarantee for every parameter combination or minor release.
+- Exclude credentials and manual worksheet values from persisted drafts and restoration. Warn that generated, copied and exported output can contain sensitive values in plaintext; never send them to a remote service or automatically apply them.
 - Keep selected devices and modules as a planning list. Selecting a module does not install it, establish its interface names, configure cabling or deploy commands to a simulator.
-- Preserve the export boundary: `.txt` is CLI text and `.cfg` is configuration-only text. Neither is a Packet Tracer `.pkt` topology or a guarantee that every target accepts the file.
+- Preserve the export boundary: CLI `.txt` and `.cfg` contain complete command scripts starting with `enable` and `configure terminal` and ending with `end`, not importable startup configurations. Manual worksheets are `.txt`, not CLI. Neither creates a Packet Tracer `.pkt` topology or guarantees that every target accepts the file.
 
 ### Template references
 
 - [Packet Tracer router IOS command tree](https://tutorials.ptnetacad.net/help/default/CLI_routerIOS.htm)
 - [Packet Tracer switch IOS command tree](https://tutorials.ptnetacad.net/help/default/CLI_switchIOS.htm)
+- [Packet Tracer IOS 15 router command tree](https://tutorials.ptnetacad.net/help/default/CLI_routerIOS15.htm)
+- [Packet Tracer ASA command tree](https://tutorials.ptnetacad.net/help/default/CLI_asa.htm)
 - [Configuring routers](https://tutorials.ptnetacad.net/help/default/config_routers.htm)
 - [Router devices and modules](https://tutorials.ptnetacad.net/help/default/devicesAndModules_routers.htm)
 
 These official Cisco help pages provide syntax and hardware context. They are not an execution test of this builder's output, do not establish support across every older release, and do not make the generated templates runtime-verified.
+
+See the [runtime-verification workflow](docs/BUILDER_COVERAGE.md#runtime-verification-workflow) before adding command test results. Preserve a clear distinction between a command accepted by the parser, the expected configuration state and working network behavior. Test only disposable fixtures with dummy credentials; do not overwrite a user's topology or publish sensitive transcripts. Synthetic Node/DOM test fixtures must never be published as Packet Tracer runtime evidence.
 
 ## Publishing checks
 
