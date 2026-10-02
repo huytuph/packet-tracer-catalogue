@@ -26,11 +26,11 @@ PARSER_ERROR = re.compile(
     r"unknown command|command not implemented)(?:\b|:)")
 
 
-def parse_manifest(source: str) -> dict:
-    if source.count(BEGIN) != 1 or source.count(END) != 1:
+def parse_manifest(source: str, begin: str = BEGIN, end: str = END) -> dict:
+    if source.count(begin) != 1 or source.count(end) != 1:
         raise ValueError("Manifest needs exactly one JSON marker pair")
-    start = source.index(BEGIN) + len(BEGIN)
-    finish = source.index(END)
+    start = source.index(begin) + len(begin)
+    finish = source.index(end)
     if finish < start:
         raise ValueError("Manifest JSON markers are out of order")
 
@@ -138,7 +138,7 @@ def validate_manifest(manifest, root: Path, models: set[str], module_ids: set[in
         if valid_major and valid_release:
             require(major not in releases or releases[major] == release, f"{label}: ambiguous observed releases for major {major}")
             releases.setdefault(major, release)
-        require(record["template_revision"] == "2.0.1", f"{label}: unsupported template_revision")
+        require(record["template_revision"] == "2.1.0", f"{label}: unsupported template_revision")
         require(record["format"] in ("txt", "cfg"), f"{label}: invalid format")
         modules = record["modules"]
         valid_modules = isinstance(modules, list)

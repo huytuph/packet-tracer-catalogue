@@ -24,7 +24,7 @@ class CommandVerificationTests(unittest.TestCase):
         self.path.write_bytes(self.transcript.encode("utf-8"))
         self.record = {
             "id": "synthetic-only", "model": "1941", "major_version": 9, "observed_release": "9.0.1",
-            "template_revision": "2.0.1", "format": "txt", "modules": [],
+            "template_revision": "2.1.0", "format": "txt", "modules": [],
             "prerequisites": ["Disposable default device, synthetic unit fixture only"],
             "commands": [{"rule_id": "session.configure", "text": "configure terminal", "result": "accepted"},
                          {"rule_id": "system.hostname", "text": "hostname Lab", "result": "accepted"},

@@ -1,6 +1,6 @@
 # Cisco Packet Tracer Network Device Catalogue
 
-A community catalogue of Cisco Packet Tracer network devices for searching, comparing and choosing devices by ports and features, with module compatibility and connection options across Packet Tracer versions 6, 7, 8 and 9. Keep devices and parts in a selection list and prepare device-specific configurations using the global version selection. CLI export requires matching simulator-tested evidence; no CLI cases are currently approved. GUI configuration worksheets remain available as manual planning notes.
+A community catalogue of Cisco Packet Tracer network devices for searching, comparing and choosing devices by ports and features, with module compatibility and connection options across Packet Tracer versions 6, 7, 8 and 9. Keep devices and parts in a selection list and prepare device-specific configurations using the global version selection. Generate, copy and export CLI scripts when their commands match reviewed official documentation for the selected model and release. Documentation-backed syntax is distinct from runtime testing; no simulator-tested cases are currently recorded. GUI configuration worksheets remain available as manual planning notes.
 
 [Open the catalogue](https://huytuph.github.io/packet-tracer-catalogue/)
 

@@ -99,16 +99,32 @@
     return {platform: category === 'switch_l2' ? 'ios-l2' : category === 'switch_l3' ? 'ios-l3' : 'ios-router', cli: engine.supportsDevice(model), sections: [], coverage: []};
   }
 
+  const exactRelease = (release, version) => typeof release === 'string' && /^\d+\.\d+(?:\.\d+){0,2}$/.test(release) && release.split('.')[0] === version;
+  const evidenceId = value => typeof value === 'string' && /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,79}$/.test(value);
+  const officialSources = sources => Array.isArray(sources) && sources.length > 0 && new Set(sources).size === sources.length && sources.every(url => typeof url === 'string' && /^https:\/\/tutorials\.ptnetacad\.net\/help\/default\/[A-Za-z0-9_./-]+\.html?$/.test(url) && url.split('/').slice(3).every(part => part !== '' && part !== '.' && part !== '..'));
+  function sameSources(left, right) {
+    if (!officialSources(left) || !officialSources(right) || left.length !== right.length) return false;
+    const sorted = [...right].sort();
+    return [...left].sort().every((url, index) => url === sorted[index]);
+  }
+
   function commandVerification(model) {
     const version = major();
-    if (!version) return {status: 'Unknown', observedRelease: null, reason: 'Choose a global version with verified command evidence. All versions permits editing and BOM export, not executable CLI.'};
+    if (!version) return {status: 'Unknown', reason: 'Choose a global version with official command documentation. All versions permits editing and BOM export, not executable CLI.'};
     try {
       const evidence = engine.verificationStatus?.(model, {major: version});
-      if (evidence?.status === 'Verified' && typeof evidence.observedRelease === 'string' && /^\d+\.\d+(?:\.\d+)*$/.test(evidence.observedRelease) && evidence.observedRelease.split('.')[0] === version) return evidence;
-      return {status: 'Unknown', observedRelease: null, reason: evidence?.reason || 'No verified command evidence exists for this model and selected version.'};
+      if (evidence?.status === 'Documentation-backed' && evidence.model === model.pt_name && evidence.majorVersion === version && exactRelease(evidence.documentedRelease, version) && evidenceId(evidence.documentationRecordId) && officialSources(evidence.documentationSources)) return evidence;
+      return {status: 'Unknown', reason: evidence?.reason || 'No matching official command documentation exists for this model and selected version.'};
     } catch (error) {
-      return {status: 'Unknown', observedRelease: null, reason: 'Command verification evidence is unavailable. CLI generation is blocked.'};
+      return {status: 'Unknown', reason: 'Command documentation is unavailable. CLI generation is blocked.'};
     }
+  }
+
+  function matchingOutputEvidence(result, current) {
+    if (!result || current?.status !== 'Documentation-backed' || !['Documentation-backed', 'Runtime-tested'].includes(result.status) || result.model !== current.model || result.majorVersion !== current.majorVersion || result.documentedRelease !== current.documentedRelease || result.documentationRecordId !== current.documentationRecordId || !sameSources(result.documentationSources, current.documentationSources)) return false;
+    const runtime = result.runtime;
+    if (result.status === 'Documentation-backed') return runtime?.status === 'Unknown' && runtime.observedRelease === null && runtime.recordId === null;
+    return runtime?.status === 'Verified' && exactRelease(runtime.observedRelease, major()) && evidenceId(runtime.recordId) && current.runtime?.status === 'Verified' && current.runtime.observedRelease === runtime.observedRelease && Array.isArray(current.runtime.recordIds) && current.runtime.recordIds.includes(runtime.recordId);
   }
 
   function seedWorksheet(instance) {
@@ -447,12 +463,12 @@
     if (!engine.supportsDevice(model)) messages.push('Configuration generation is unavailable for this device. It remains in the selection list.');
     const info = description(model), permissions = capabilities(instance);
     const verification = info.cli ? commandVerification(model) : null;
-    if (verification) messages.push(verification.status === 'Verified' ? `Tested configuration cases on Packet Tracer ${verification.observedRelease}. Current settings must match a recorded case.` : 'Command verification: Unknown. ' + verification.reason);
+    if (verification) messages.push(verification.status === 'Documentation-backed' ? `Command syntax: Documentation-backed for Packet Tracer ${verification.documentedRelease}. Runtime testing is separate.` : 'Command syntax: Unknown. ' + verification.reason);
     if (permissions.router && !permissions.switched && (instance.config.vlans.length || instance.config.interfaces.some(row => row.mode !== 'routed'))) messages.push('An EtherSwitch module is required for the retained VLAN/switchport configuration. Remove those rows or attach a suitable module.');
     if (permissions.router && !permissions.vlans && instance.config.vlans.length) messages.push('Router drafts reference existing VLANs; remove VLAN creation rows.');
     if (info.platform === 'gui-plan') messages.push('Manual worksheet only; not executable Cisco CLI. Worksheet values are session-only.');
     context.textContent = messages.join(' ');
-    elements.generate.disabled = !engine.supportsDevice(model) || !deviceAvailable(model) || info.cli && verification.status !== 'Verified';
+    elements.generate.disabled = !engine.supportsDevice(model) || !deviceAvailable(model) || info.cli && verification.status !== 'Documentation-backed';
     elements.generate.innerHTML = icon(info.cli ? 'terminal' : 'download') + (info.cli ? 'Generate selected device' : 'Generate worksheet');
     const cfg = elements.format.querySelector('option[value="cfg"]');
     if (cfg) cfg.disabled = !info.cli;
@@ -648,7 +664,7 @@
     if (!instance) return;
     const model = device(instance.deviceId), info = description(model);
     const verification = info.cli ? commandVerification(model) : null;
-    if (verification?.status !== 'Verified' && info.cli) {
+    if (verification?.status !== 'Documentation-backed' && info.cli) {
       elements.errors.textContent = 'CLI generation blocked: ' + verification.reason;
       elements.outputStatus.textContent = 'Generation blocked';
       return;
@@ -668,8 +684,8 @@
     elements.errors.textContent = (result.errors || []).join('\n');
     elements.warnings.textContent = [...(result.warnings || []), ...assessments.flatMap(item => item.warnings), 'Credentials and worksheet values are session-only. Generated output may contain plaintext credentials.'].join('\n');
     if (!result.ok || !result.text) { elements.outputStatus.textContent = 'Generation blocked'; return; }
-    if (info.cli && (result.outputKind !== 'cli' || result.verification?.status !== 'Verified' || result.verification.observedRelease !== verification.observedRelease || typeof result.verification.recordId !== 'string' || !result.verification.recordId)) {
-      elements.errors.textContent = 'CLI generation blocked: the engine did not return matching verified command evidence.';
+    if (info.cli && (result.outputKind !== 'cli' || !matchingOutputEvidence(result.verification, verification))) {
+      elements.errors.textContent = 'CLI generation blocked: the engine did not return matching command documentation or runtime evidence.';
       elements.outputStatus.textContent = 'Generation blocked';
       return;
     }
@@ -678,7 +694,8 @@
       elements.outputStatus.textContent = 'Generation blocked';
       return;
     }
-    output = {text: result.text, filename: result.filename, format: info.cli ? elements.format.value : 'txt', label: info.cli ? 'Verified configuration case · Packet Tracer ' + verification.observedRelease : 'Manual configuration worksheet', instanceId: instance.id, major: major(), observedRelease: verification?.observedRelease || null, recordId: result.verification?.recordId || null};
+    const label = !info.cli ? 'Manual configuration worksheet' : result.verification.status === 'Runtime-tested' ? 'Runtime-tested · Packet Tracer ' + result.verification.runtime.observedRelease : 'Documentation-backed · Packet Tracer ' + verification.documentedRelease + ' · Runtime-tested: No';
+    output = {text: result.text, filename: result.filename, format: info.cli ? elements.format.value : 'txt', label, instanceId: instance.id, major: major(), verification: result.verification || null};
     elements.preview.value = result.text;
     elements.verification.value = result.verificationText || '';
     elements.copy.disabled = false;
@@ -690,7 +707,7 @@
     if (!output) return false;
     const instance = selected(), model = instance && device(instance.deviceId);
     const verification = model && description(model).cli ? commandVerification(model) : null;
-    if (!instance || output.instanceId !== instance.id || output.major !== major() || !deviceAvailable(model) || verification && (verification.status !== 'Verified' || verification.observedRelease !== output.observedRelease)) {
+    if (!instance || output.instanceId !== instance.id || output.major !== major() || !deviceAvailable(model) || verification && !matchingOutputEvidence(output.verification, verification)) {
       invalidate(); renderContext();
       return false;
     }

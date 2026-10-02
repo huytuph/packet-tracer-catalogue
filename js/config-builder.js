@@ -2,13 +2,15 @@
   'use strict';
   const parser = typeof module === 'object' && module.exports ? require('../assets/vendor/ipaddr.js') : root.ipaddr || globalThis.ipaddr;
   let evidence = root.PT_COMMAND_VERIFICATION;
+  let documentation = root.PT_COMMAND_DOCUMENTATION;
   if (typeof module === 'object' && module.exports) {
     try { evidence = require('../data/command-verification.js'); } catch (_) { evidence = null; }
+    try { documentation = require('../data/command-documentation.js'); } catch (_) { documentation = null; }
   }
-  const api = factory(parser, evidence);
+  const api = factory(parser, evidence, documentation);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.PTConfigBuilder = api;
-}(typeof window !== 'undefined' ? window : globalThis, function (ipaddr, manifest) {
+}(typeof window !== 'undefined' ? window : globalThis, function (ipaddr, manifest, documentation) {
   'use strict';
 
   const MODELS = {
@@ -24,11 +26,15 @@
     'AccessPoint-PT': 'gui', 'LAP-PT': 'gui', '3702i': 'gui', 'Cloud-PT': 'gui'
   };
   const MAJORS = ['6', '7', '8', '9'];
-  const TEMPLATE_REVISION = '2.0.1';
+  const TEMPLATE_REVISION = '2.1.0';
   let runtimeRecords = [];
+  let documentationReferences = [];
   try {
     if (manifest?.schema_version === 1 && Array.isArray(manifest.records)) runtimeRecords = JSON.parse(JSON.stringify(manifest.records));
   } catch (_) { runtimeRecords = []; }
+  try {
+    if (exactFields(documentation, ['schema_version', 'template_revision', 'references']) && documentation.schema_version === 1 && documentation.template_revision === TEMPLATE_REVISION && Array.isArray(documentation.references)) documentationReferences = JSON.parse(JSON.stringify(documentation.references));
+  } catch (_) { documentationReferences = []; }
   const HELP = 'https://tutorials.ptnetacad.net/help/default/';
   const FEATURES = {
     dot1q_trunk: '802.1Q Trunking', etherchannel: 'EtherChannel', lacp: 'LACP', lldp: 'LLDP',
@@ -58,6 +64,10 @@
 
   function supportsDevice(device) {
     return !!device && Object.prototype.hasOwnProperty.call(MODELS, device.pt_name);
+  }
+
+  function exactFields(value, fields) {
+    return !!value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === fields.length && fields.every(field => Object.prototype.hasOwnProperty.call(value, field));
   }
 
   function describe(device, context = {}) {
@@ -95,8 +105,9 @@
     if (device?.pt_name === 'HomeRouter') worksheetFields = [field('Internet mode', 'select', ['DHCP', 'Static', 'Wireless AP', 'Media Bridge']), field('Internet IPv4'), field('Internet mask'), field('Internet gateway'), field('LAN IPv4'), field('LAN mask'), field('Radio band', 'select', ['2.4 GHz', '5 GHz 1', '5 GHz 2']), ...wireless, field('RADIUS IPv4'), field('RADIUS shared secret', 'password'), field('Guest SSID')];
     if (device?.pt_name === 'MX65W') worksheetFields = [field('WAN mode', 'select', ['DHCP', 'Static', 'PPPoE']), field('WAN IPv4'), field('WAN mask'), field('WAN gateway'), field('PPPoE username'), field('PPPoE password', 'password'), field('NAT / VLAN addressing'), field('SSID'), field('Authentication', 'select', ['Open', 'WEP', 'WPA2 PSK', 'WPA2 Enterprise']), field('Wireless passphrase', 'password'), field('Outbound firewall rules'), {...field('DHCP server settings'), readOnly: true}];
     if (device?.pt_name === 'Cloud-PT') worksheetFields = [field('Serial interface'), field('Serial enabled', 'checkbox'), field('LMI', 'select', ['ANSI', 'Cisco', 'Q933a']), field('DLCI', 'number'), field('Frame Relay cross-connects'), field('Ethernet interface'), field('Provider network', 'select', ['DSL', 'Cable']), field('DSL / Cable cross-connects'), field('Modem phone number')];
+    const reference = documentationReference(device, major);
     return {platform: kind === 'gui' ? 'gui-plan' : kind === 'asa' ? 'asa' : kind ? 'ios-' + kind : null,
-      cli: !!kind && kind !== 'gui', sections: kind ? sections : [], coverage, sources: kind ? [HELP + source] : [], worksheetFields,
+      cli: !!kind && kind !== 'gui', sections: kind ? sections : [], coverage, sources: kind ? [reference?.source_url || HELP + source] : [], worksheetFields,
       builtInSwitching: BUILTIN_SWITCHING.has(device?.pt_name), vlanCreation: kind === 'l2' || kind === 'l3', managementSVI: kind === 'l2',
       ipv6Routing: kind === 'router' || kind === 'l3', interfaceServices: kind === 'router' ? ['ipv6', 'serial', 'subinterface', 'helperAddress', 'natRole', 'acl', 'hsrp', 'switchport'] : kind === 'l3' ? ['ipv6', 'helperAddress', 'acl', 'hsrp', 'switchport'] : kind === 'l2' ? ['switchport'] : []};
   }
@@ -248,9 +259,9 @@
       .sort((a, b) => b.evidence.checked_date.localeCompare(a.evidence.checked_date) || b.observed_release.localeCompare(a.observed_release, undefined, {numeric: true}) || a.id.localeCompare(b.id));
   }
 
-  function verificationStatus(device, context = {}) {
+  function runtimeStatus(device, context = {}) {
     const major = typeof context.major === 'string' ? context.major : '', records = recordsFor(device, major);
-    const base = {scope: 'exact-tested-cases', recordCount: records.length};
+    const base = {scope: 'exact-tested-cases', recordCount: records.length, recordIds: records.map(record => record.id)};
     if (!records.length) return {...base, status: 'Unknown', observedRelease: null,
       reason: major === '' ? 'All versions cannot certify an exact runtime-tested command sequence.' : 'No runtime-tested command case is recorded for this model and global version.'};
     if (new Set(runtimeRecords.filter(record => validRuntimeRecord(record) && String(record.major_version) === major).map(record => record.observed_release)).size !== 1) return {...base, status: 'Unknown', observedRelease: null,
@@ -259,8 +270,56 @@
       reason: 'Tested cases exist; changed commands, parameters, format or modules must match a recorded case. This is not verification of every model command.'};
   }
 
+  function validDocumentationReference(reference) {
+    const strings = (rows, maximum) => Array.isArray(rows) && rows.every(row => printable(row, maximum) && row.length > 0 && row === row.trim());
+    const validRule = rule => typeof rule === 'string' && /^[a-z0-9][a-z0-9.-]{0,99}$/.test(rule);
+    const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value + 'T00:00:00Z')) && new Date(value + 'T00:00:00Z').toISOString().slice(0, 10) === value;
+    if (!exactFields(reference, ['id', 'model', 'major_version', 'documented_release', 'source_url', 'source_kind', 'source_sha256', 'checked_date', 'rule_ids', 'constraints', 'prerequisites', 'notes']) || !identifier(reference.id, 80) || typeof reference.model !== 'string' || !supportsDevice({pt_name: reference.model}) || MODELS[reference.model] === 'gui' ||
+        !Number.isInteger(reference.major_version) || !MAJORS.includes(String(reference.major_version)) ||
+        typeof reference.documented_release !== 'string' || !/^\d+\.\d+(?:\.\d+){0,2}$/.test(reference.documented_release) || reference.documented_release.split('.')[0] !== String(reference.major_version) ||
+        reference.source_kind !== 'packet-tracer-installed-help' || typeof reference.source_url !== 'string' || !/^https:\/\/tutorials\.ptnetacad\.net\/help\/default\/[A-Za-z0-9_./-]+\.(?:htm|html)$/.test(reference.source_url) || reference.source_url.slice(HELP.length).split('/').some(part => ['', '.', '..'].includes(part)) ||
+        typeof reference.source_sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(reference.source_sha256) || !validDate(reference.checked_date) ||
+        !Array.isArray(reference.rule_ids) || reference.rule_ids.length === 0 || !reference.rule_ids.every(validRule) || new Set(reference.rule_ids).size !== reference.rule_ids.length ||
+        !strings(reference.prerequisites, 1024) || !strings(reference.notes, 2048) || !Array.isArray(reference.constraints)) return false;
+    const required = ['exec.enable', 'exec.configure-terminal', 'global.hostname', 'exec.end', 'show.running-config', MODELS[reference.model] === 'asa' ? 'show.asa.interface-brief' : 'show.ios.interface-brief'];
+    if (!required.every(rule => reference.rule_ids.includes(rule))) return false;
+    return reference.constraints.every(constraint => {
+      if (!exactFields(constraint, ['rule_id', 'pattern', 'reason']) || !reference.rule_ids.includes(constraint.rule_id) || !printable(constraint.pattern, 2048) || !constraint.pattern.startsWith('^') || !constraint.pattern.endsWith('$') || !printable(constraint.reason, 1024) || !constraint.reason.length) return false;
+      try { new RegExp(constraint.pattern); return true; } catch (_) { return false; }
+    });
+  }
+
+  function documentationReference(device, major) {
+    if (!supportsDevice(device) || MODELS[device.pt_name] === 'gui' || !MAJORS.includes(major)) return null;
+    const references = documentationReferences.filter(reference => validDocumentationReference(reference) && reference.model === device.pt_name && String(reference.major_version) === major);
+    return references.length === 1 ? references[0] : null;
+  }
+
+  function verificationStatus(device, context = {}) {
+    const major = typeof context.major === 'string' ? context.major : '', reference = documentationReference(device, major);
+    const base = {model: device?.pt_name || null, majorVersion: major, documentedRelease: reference?.documented_release || null,
+      documentationSources: reference ? [reference.source_url] : [], documentationRecordId: reference?.id || null,
+      runtime: runtimeStatus(device, {major})};
+    if (!reference) return {...base, status: 'Unknown', reason: major === '' ? 'Select one global version for model-specific command documentation.' : 'No reviewed model-specific command documentation is recorded for this global version. References for another Packet Tracer release cannot approve it.'};
+    return {...base, status: 'Documentation-backed', reason: 'Reviewed command templates use the official Packet Tracer ' + reference.documented_release + ' reference. This establishes documented syntax, not simulator execution.'};
+  }
+
+  function undocumentedCommands(reference, commands, checks) {
+    const failures = [];
+    const labels = {'ios.acl.extended.': 'extended ACL', 'ios.acl.standard.': 'standard ACL', 'asa.acl.': 'ASA ACL',
+      'asa.object.': 'ASA NAT object', 'ios.interface.': 'interface', 'ios.routing.': 'routing protocol', 'show.': 'diagnostic'};
+    for (const row of [...commands, ...checks]) {
+      const label = Object.entries(labels).find(([prefix]) => row.rule_id.startsWith(prefix))?.[1] || 'configuration';
+      if (!reference.rule_ids.includes(row.rule_id)) failures.push('No reviewed official syntax for the selected ' + label + ' command on ' + reference.model + ' (' + row.rule_id + ').');
+      else for (const constraint of reference.constraints.filter(constraint => constraint.rule_id === row.rule_id)) {
+        if (!new RegExp('^(?:' + constraint.pattern + ')$').test(row.text)) failures.push('Unsupported or undocumented command variant (' + row.rule_id + '): ' + constraint.reason);
+      }
+    }
+    return [...new Set(failures)];
+  }
+
   function matchingRecord(device, major, format, modules, commands, checks) {
-    const selectedRelease = verificationStatus(device, {major}).observedRelease;
+    const selectedRelease = runtimeStatus(device, {major}).observedRelease;
     const sameSequence = (actual, recorded) => actual.length === recorded.length && actual.every((row, index) => row.rule_id === recorded[index].rule_id && row.text === recorded[index].text);
     const moduleKey = rows => JSON.stringify(rows.map(row => ({moduleId: row.moduleId ?? row.id, quantity: row.quantity})).sort((a, b) => a.moduleId - b.moduleId));
     return recordsFor(device, major).find(record => record.observed_release === selectedRelease && record.format === format &&
@@ -276,7 +335,7 @@
     if (!supportsDevice(device)) fail('This device has no configuration adapter.');
     if (major !== '' && !MAJORS.includes(major)) fail('Use the global Packet Tracer version selection: All versions, 6, 7, 8 or 9.');
     if (context?.format !== 'txt' && context?.format !== 'cfg') fail('Choose txt or cfg output.');
-    warn('Input validation is not runtime verification; executable export requires an exact tested command case.');
+    warn('Commands must match reviewed official documentation. Input validation and documented syntax are not simulator execution tests.');
     if (major === '') warn('All versions is a combined, unverified draft; no release-scoped availability, feature or module claims are used.');
 
     const profile = MAJORS.includes(major) ? selectedProfile(device, major) : null;
@@ -342,7 +401,7 @@
       const facts = features.filter(row => row.slug === slug);
       if (facts.some(row => row.verification_status === 'Verified' && row.support_mode === 'unsupported')) fail(label + ' is verified unsupported in the selected version family.');
       const verified = facts.find(row => row.verification_status === 'Verified' && ['native', 'configuration_required', 'module_required', 'module_and_configuration'].includes(row.support_mode));
-      if (!verified) warn(label + ' command support is not verified for this version family.');
+      if (!verified) warn(label + ' catalogue capability evidence is incomplete for this version family; documented command syntax does not confirm installed hardware or feature behavior.');
       if (verified && ['module_required', 'module_and_configuration'].includes(verified.support_mode)) {
         if (!verified.required_module_id || !moduleIds.has(verified.required_module_id)) fail(label + ' requires its documented module to be selected.');
       }
@@ -868,13 +927,19 @@
     if (config.asa.routes.length) check('show.asa.route', 'show route');
     if (config.asa.acls.length) check('show.asa.acl', 'show access-list');
     if (config.asa.objects.length) { check('show.asa.nat', 'show nat'); check('show.asa.xlate', 'show xlate'); }
+    const status = verificationStatus(device, {major}), reference = documentationReference(device, major);
+    const documentationErrors = reference ? undocumentedCommands(reference, commands, checks) : [status.reason];
+    if (documentationErrors.length) return {ok: false, errors: [...errors, ...documentationErrors], warnings, text: '', filename, verificationText: '', outputKind: 'cli',
+      verification: {...status, status: 'Unknown'}};
     const approved = matchingRecord(device, major, extension, config.modules, commands, checks);
-    if (!approved) return {ok: false, errors: [...errors, major === '' ? 'CLI export requires one selected global version and an exact runtime-tested command case.' : 'CLI export blocked: this complete command sequence, parameters, format and module selection have no matching runtime-tested case.'], warnings,
-      text: '', filename, verificationText: '', outputKind: 'cli', verification: {status: 'Unknown', observedRelease: null}};
-    warnings.push(...approved.prerequisites.map(prerequisite => 'Tested-case prerequisite: ' + prerequisite));
+    const prerequisites = [...new Set([...reference.prerequisites, ...(approved?.prerequisites || [])])];
+    warnings.push(...prerequisites.map(prerequisite => 'Configuration prerequisite: ' + prerequisite));
+    if (!approved) warnings.push('Documentation-backed syntax for Packet Tracer ' + reference.documented_release + '; this generated configuration has not been runtime-tested.');
+    const runtime = {...status.runtime, status: approved ? 'Verified' : 'Unknown', observedRelease: approved?.observed_release || null, recordId: approved?.id || null,
+      reason: approved ? 'This exact generated configuration matches a recorded simulator execution.' : 'This generated configuration has no matching runtime-tested case. Documentation-backed generation is permitted.'};
     return {ok: true, errors, warnings, text: lines.join('\n') + '\n', filename, verificationText: checks.map(row => row.text).join('\n') + '\n', outputKind: 'cli',
-      verification: {status: 'Verified', observedRelease: approved.observed_release, scope: 'exact-tested-cases', recordId: approved.id,
-        templateRevision: TEMPLATE_REVISION, transcriptPath: approved.evidence.transcript_path, prerequisites: [...approved.prerequisites]}};
+      verification: {...status, status: approved ? 'Runtime-tested' : 'Documentation-backed', runtime, templateRevision: TEMPLATE_REVISION,
+        transcriptPath: approved?.evidence.transcript_path || null, prerequisites}};
   }
 
   return Object.freeze({supportsDevice, describe, createConfig, validate, generate, verificationStatus, templateRevision: TEMPLATE_REVISION});

@@ -13,20 +13,21 @@ const catalogue = JSON.parse(JSON.stringify(sandbox.window.PT_CATALOGUE));
 const clone = value => JSON.parse(JSON.stringify(value));
 const device = name => clone(catalogue.devices.find(row => row.pt_name === name));
 const engineSource = fs.readFileSync(path.join(root, 'js/config-builder.js'), 'utf8');
+const documentation = require('../data/command-documentation.js');
 const gateMarker = 'const approved = matchingRecord(device, major, extension, config.modules, commands, checks);';
 let passed = 0;
 
 // Synthetic records exercise gating mechanics only; they are not Packet Tracer evidence.
 function syntheticRecord(d, major, format, modules, commands, checks) {
   return {id: 'TEST_ONLY_SYNTHETIC', model: d.pt_name, major_version: Number(major), observed_release: major + '.0.1',
-    template_revision: '2.0.1', format, modules: modules.map(row => ({moduleId: row.id, quantity: row.quantity})).sort((a, b) => a.moduleId - b.moduleId),
+    template_revision: '2.1.0', format, modules: modules.map(row => ({moduleId: row.id, quantity: row.quantity})).sort((a, b) => a.moduleId - b.moduleId),
     prerequisites: ['TEST ONLY: synthetic fixture, not observed simulator behavior.'],
     commands: clone(commands).map(row => ({...row, result: 'accepted'})), checks: clone(checks).map(row => ({...row, result: 'accepted'})),
     evidence: {method: 'packet-tracer-runtime', transcript_path: 'evidence/runtime/TEST_ONLY_SYNTHETIC.txt', transcript_sha256: '0'.repeat(64), checked_date: '2026-10-02', error_count: 0,
       running_config_assertions: ['TEST ONLY: synthetic running configuration.'], diagnostic_assertions: ['TEST ONLY: synthetic diagnostic output.']}};
 }
-function loadEngine(records = [], capture) {
-  const browser = {window: {PT_COMMAND_VERIFICATION: {schema_version: 1, records: clone(records)}}};
+function loadEngine(records = [], capture, references = documentation) {
+  const browser = {window: {PT_COMMAND_VERIFICATION: {schema_version: 1, records: clone(records)}, PT_COMMAND_DOCUMENTATION: clone(references)}};
   vm.runInNewContext(fs.readFileSync(path.join(root, 'assets/vendor/ipaddr.js'), 'utf8'), browser);
   if (capture) browser.TEST_ONLY_CAPTURE = capture;
   const source = capture ? engineSource.replace(gateMarker, 'const approved = globalThis.TEST_ONLY_CAPTURE(device, major, extension, config.modules, commands, checks);') : engineSource;
@@ -45,8 +46,8 @@ function testedCase(entry, d, c = context()) {
 }
 
 function check(name, test) {
-  test(); passed++;
-  console.log('PASS ' + name);
+  try { test(); passed++; console.log('PASS ' + name); }
+  catch (error) { process.exitCode = 1; console.error('FAIL ' + name + '\n' + error.stack); }
 }
 function context(major = '9', format = 'txt') {
   return {major, format};
@@ -65,16 +66,17 @@ function trunk(name = 'GigabitEthernet0/1') {
 }
 function succeeds(entry, d, c = context()) {
   const gui = builder.describe(d, c).platform === 'gui-plan';
-  const api = gui ? builder : loadEngine([testedCase(entry, d, c)]);
-  const result = api.generate(entry, d, c);
+  const result = builder.generate(entry, d, c);
   assert.equal(result.ok, true, result.errors.join('\n'));
   if (gui) assert.match(result.text, /UNTESTED/);
   else {
-    assert.equal(result.verification.status, 'Verified'); assert.equal(result.verification.observedRelease, c.major + '.0.1');
-    assert.equal(result.verification.templateRevision, '2.0.1');
-    assert.equal(result.verification.transcriptPath, 'evidence/runtime/TEST_ONLY_SYNTHETIC.txt');
-    assert.deepEqual(Array.from(result.verification.prerequisites), ['TEST ONLY: synthetic fixture, not observed simulator behavior.']);
-    assert(result.warnings.includes('Tested-case prerequisite: TEST ONLY: synthetic fixture, not observed simulator behavior.'));
+    assert.equal(result.verification.status, 'Documentation-backed'); assert.equal(result.verification.documentedRelease, '9.0.1');
+    assert.equal(result.verification.model, d.pt_name); assert.equal(result.verification.majorVersion, c.major);
+    assert.equal(result.verification.templateRevision, '2.1.0');
+    assert.equal(result.verification.runtime.status, 'Unknown'); assert.equal(result.verification.runtime.recordId, null);
+    assert.equal(result.verification.transcriptPath, null);
+    assert(result.verification.documentationRecordId); assert(result.verification.documentationSources.length);
+    assert(result.warnings.some(warning => /not been runtime-tested/.test(warning)));
   }
   return result;
 }
@@ -114,13 +116,13 @@ check('default configurations contain no guessed ports and do not share mutable 
   assert.deepEqual(first.interfaces, []); assert.equal(first.interfacesConfirmed, false);
   first.interfaces.push(routed()); assert.deepEqual(second.interfaces, []);
 });
-check('synthetic exact router cases exercise each 6/7/8/9 family without mutating inputs', () => {
+check('documented router generation respects release scope without mutating inputs', () => {
   for (const major of ['6', '7', '8', '9']) {
     const d = device('2911'), entry = item(d, {interfaces: [routed()], interfacesConfirmed: true,
       routes: [{network: '0.0.0.0', mask: '0.0.0.0', nextHop: '192.168.10.2'}]});
     const before = JSON.stringify({d, entry});
-    const result = succeeds(entry, d, context(major));
-    assert.match(result.text, /ip route 0\.0\.0\.0 0\.0\.0\.0 192\.168\.10\.2/);
+    if (major === '9') assert.match(succeeds(entry, d, context(major)).text, /ip route 0\.0\.0\.0 0\.0\.0\.0 192\.168\.10\.2/);
+    else fails(entry, d, /command documentation/, context(major));
     assert.equal(JSON.stringify({d, entry}), before);
   }
 });
@@ -128,7 +130,8 @@ check('global major is the sole version control and obsolete exact release field
   const d = device('1841'), entry = item(d);
   for (const major of [9, null, undefined, '5', '10', '9\n']) fails(entry, d, /global Packet Tracer/, {major, format: 'txt'});
   for (const major of ['6', '7', '8', '9']) {
-    const result = succeeds({...entry, release: '7.2.2'}, d, {major, release: '8.2.2\nreload', format: 'txt'});
+    const c = {major, release: '8.2.2\nreload', format: 'txt'};
+    const result = major === '9' ? succeeds({...entry, release: '7.2.2'}, d, c) : fails({...entry, release: '7.2.2'}, d, /command documentation/, c);
     assert(!result.text.includes('7.2.2')); assert(!result.text.includes('8.2.2')); assert(!result.text.includes('reload'));
   }
   fails(entry, d, /output/, {...context(), format: 'zip'});
@@ -137,7 +140,7 @@ check('global major is the sole version control and obsolete exact release field
 check('All versions never borrows availability or unsupported feature claims from any release profile', () => {
   const d = device('2960-24TT');
   for (const profile of Object.values(d.version_profiles)) { profile.availability.available = false; profile.features = [{slug: 'dot1q_trunk', support_mode: 'unsupported', verification_status: 'Verified'}]; }
-  const result = fails(item(d, {interfaces: [trunk()], interfacesConfirmed: true}), d, /exact runtime-tested/, {major: '', format: 'txt'});
+  const result = fails(item(d, {interfaces: [trunk()], interfacesConfirmed: true}), d, /Select one global version/, {major: '', format: 'txt'});
   assert(result.warnings.some(warning => /combined, unverified/.test(warning)));
   assert(builder.describe(d, {major: ''}).coverage.every(row => /Unverified combined/.test(row.status)));
 });
@@ -155,7 +158,7 @@ check('a mismatched profile cannot supply availability or capability claims for 
     features: [{slug: 'dot1q_trunk', support_mode: 'unsupported', verification_status: 'Verified', major_version: 9}]};
   const result = succeeds(item(d, {interfaces: [trunk()], interfacesConfirmed: true}), d);
   assert(result.warnings.some(warning => /availability is unknown/.test(warning)));
-  assert(result.warnings.some(warning => /802\.1Q.*not verified/.test(warning)));
+  assert(result.warnings.some(warning => /802\.1Q.*catalogue capability evidence is incomplete/.test(warning)));
 });
 check('only selected-major verified unsupported features block relevant commands', () => {
   const d = device('2960-24TT'), entry = item(d, {interfaces: [trunk()], interfacesConfirmed: true});
@@ -336,7 +339,7 @@ check('malformed rows and types fail without throwing', () => {
 check('new adapter defaults use meaningful hostnames without guessing hardware settings', () => {
   for (const [name, prefix] of [['ASA5505', 'FW'], ['AccessPoint-PT', 'AP'], ['WLC-2504', 'WLC'], ['HomeRouter', 'HR'], ['MX65W', 'MX'], ['Cloud-PT', 'CLOUD']]) assert.equal(builder.createConfig(device(name), 3).hostname, prefix + '3');
   for (const d of catalogue.devices) {
-    if (builder.describe(d).cli) fails(item(d), d, /exact runtime-tested/, {major: '', format: 'txt'});
+    if (builder.describe(d).cli) fails(item(d), d, /Select one global version/, {major: '', format: 'txt'});
     else succeeds(item(d), d, {major: '', format: 'txt'});
   }
 });
@@ -398,10 +401,11 @@ check('serial interfaces gate serial capability and DCE clocking separately from
   d.version_profiles['9'].features = [{slug: 'serial_wan', support_mode: 'unsupported', verification_status: 'Verified', major_version: 9}];
   fails(item(d, {interfaces: [routed('Serial0/0/0')], interfacesConfirmed: true}), d, /Serial WAN.*unsupported/);
 });
-check('router subinterfaces have explicit tags and reject duplicate parent tags or native subinterfaces', () => {
-  const d = device('2911'), first = {...routed('Gi0/0.10'), dot1qVlan: 10, native: true}, second = {...routed('Gi0/0.20'), address: '192.168.20.1', dot1qVlan: 20};
+check('documented router subinterfaces have explicit tags while missing model branches stay blocked', () => {
+  const d = device('Router-PT'), first = {...routed('Gi0/0.10'), dot1qVlan: 10, native: true}, second = {...routed('Gi0/0.20'), address: '192.168.20.1', dot1qVlan: 20};
   const config = {interfaces: [first, second], interfacesConfirmed: true};
   assert.match(succeeds(item(d, config), d).text, /encapsulation dot1Q 10 native/);
+  fails(item(device('2911'), config), device('2911'), /ios.interface.dot1q/);
   fails(item(d, {...config, interfaces: [{...first, dot1qVlan: ''}]}), d, /require.*VLAN/);
   fails(item(d, {...config, interfaces: [first, {...second, dot1qVlan: 10}]}), d, /reuse.*VLAN tag/);
   fails(item(d, {...config, interfaces: [first, {...second, native: true}]}), d, /only one native/);
@@ -462,19 +466,24 @@ check('OSPF EIGRP RIP and BGP have typed networks and platform prerequisites', (
 });
 check('IOS ACL NAT and DHCP templates validate definitions dependencies and conflicts', () => {
   const d = device('2911'), config = {interfacesConfirmed: true, interfaces: [{...routed('Gi0/0'), natRole: 'inside', aclIn: 'WEB'}, {...routed('Gi0/1'), address: '203.0.113.1', natRole: 'outside'}],
-    acls: [{name: 'NAT_INSIDE', type: 'standard', entries: [{action: 'permit', source: '192.168.10.0', sourceWildcard: '0.0.0.255'}]}, {name: 'WEB', type: 'extended', entries: [{action: 'permit', protocol: 'tcp', source: 'any', destination: '198.51.100.10', destinationPort: 443}]}],
+    acls: [{name: 'NAT_INSIDE', type: 'standard', entries: [{action: 'permit', source: '192.168.10.0', sourceWildcard: '0.0.0.255'}]}, {name: 'WEB', type: 'standard', entries: [{action: 'permit', source: '198.51.100.10'}]}],
     nat: {pat: [{acl: 'NAT_INSIDE', interface: 'Gi0/1'}], static: [{inside: '192.168.10.10', outside: '203.0.113.10'}]},
     dhcp: {pools: [{name: 'LAN', network: '192.168.10.0', mask: '255.255.255.0', gateway: '192.168.10.1', dns: '192.0.2.53', domain: 'lab.example'}], excluded: [{start: '192.168.10.1', end: '192.168.10.20'}]}};
-  const result = succeeds(item(d, config), d); for (const command of ['ip access-list extended WEB', 'permit tcp any host 198.51.100.10 eq 443', 'ip nat inside source list NAT_INSIDE interface GigabitEthernet0/1 overload', 'ip dhcp pool LAN']) assert(result.text.includes(command));
+  const result = succeeds(item(d, config), d); for (const command of ['ip access-list standard WEB', 'permit host 198.51.100.10', 'ip nat inside source list NAT_INSIDE interface GigabitEthernet0/1 overload', 'ip dhcp pool LAN']) assert(result.text.includes(command));
+  const extended = {name: 'WEB', type: 'extended', entries: [{action: 'permit', protocol: 'tcp', source: 'any', destination: '198.51.100.10', destinationPort: 443}]};
+  fails(item(d, {...config, acls: [config.acls[0], extended]}), d, /ios.acl.extended/);
   fails(item(d, {...config, nat: {...config.nat, pat: [...config.nat.pat, ...config.nat.pat]}}), d, /Duplicate PAT/);
   fails(item(d, {...config, nat: {...config.nat, static: [...config.nat.static, {inside: '192.168.10.11', outside: '203.0.113.10'}]}}), d, /addresses must be unique/);
   fails(item(d, {...config, dhcp: {pools: [{...config.dhcp.pools[0], gateway: '192.168.11.1'}]}}), d, /gateway.*pool network/);
   fails(item(d, {...config, acls: [{name: 'BAD', type: 'extended', entries: [{action: 'permit', protocol: 'ip', source: 'any', destination: 'any', destinationPort: 80}]}]}), d, /TCP\/UDP/);
 });
-check('ASA routed interfaces ACLs routes and object PAT use distinct ASA syntax', () => {
+check('ASA documented interfaces and routes generate while omitted ACL and NAT mode syntax stays blocked', () => {
   const d = device('ASA5506-X'), asa = {interfaces: [{name: 'Gi1/1', nameif: 'inside', securityLevel: 100, address: '192.168.10.1', mask: '255.255.255.0', shutdown: false}, {name: 'Gi1/2', nameif: 'outside', securityLevel: 0, address: '203.0.113.1', mask: '255.255.255.0', shutdown: false}],
     routes: [{nameif: 'outside', network: '0.0.0.0', mask: '0.0.0.0', nextHop: '203.0.113.2'}], acls: [{name: 'OUTSIDE_IN', action: 'permit', protocol: 'tcp', source: 'any', destination: '192.168.10.10', destinationPort: 443}], bindings: [{acl: 'OUTSIDE_IN', direction: 'in', nameif: 'outside'}], objects: [{name: 'LAN', network: '192.168.10.0', mask: '255.255.255.0', inside: 'inside', outside: 'outside', dynamicInterface: true}]};
-  const result = succeeds(item(d, {asa, interfacesConfirmed: true}), d); for (const command of ['nameif inside', 'security-level 100', 'route outside 0.0.0.0 0.0.0.0 203.0.113.2', 'access-group OUTSIDE_IN in interface outside', 'nat (inside,outside) dynamic interface']) assert(result.text.includes(command));
+  const documented = {...asa, acls: [], bindings: [], objects: []};
+  const result = succeeds(item(d, {asa: documented, interfacesConfirmed: true}), d); for (const command of ['nameif inside', 'security-level 100', 'route outside 0.0.0.0 0.0.0.0 203.0.113.2']) assert(result.text.includes(command));
+  const blocked = fails(item(d, {asa, interfacesConfirmed: true}), d, /asa.acl.permit/);
+  assert(blocked.errors.some(error => /asa.object.exit/.test(error)));
   assert(!result.text.includes('ip route ')); assert(!result.text.includes('ip nat inside'));
   assert.match(result.verificationText, /show interface ip brief/);
   for (const name of ['Serial0/0', 'Loopback1', 'Port-channel1']) fails(item(d, {asa: {...asa, interfaces: [{...asa.interfaces[0], name}]}, interfacesConfirmed: true}), d, /Ethernet-family/);
@@ -498,53 +507,57 @@ check('new typed inputs reject command injection and malformed objects without e
   const asa = device('ASA5506-X'); fails(item(asa, {interfacesConfirmed: true, asa: {interfaces: [{name: 'Gi1/1', nameif: 'inside\nend', securityLevel: 100}]}}), asa, /nameif/);
 });
 
-check('empty production evidence blocks every CLI model and global family without exposing commands', () => {
-  assert.equal(builder.templateRevision, '2.0.1');
+check('production documentation permits PT9 models without runtime evidence and does not approve other families', () => {
+  assert.equal(builder.templateRevision, '2.1.0');
   for (const d of catalogue.devices.filter(d => builder.describe(d).cli)) {
     for (const major of ['', '6', '7', '8', '9']) {
       const status = builder.verificationStatus(d, {major});
-      assert.equal(status.status, 'Unknown'); assert.equal(status.observedRelease, null); assert.equal(status.recordCount, 0);
-      assert.equal(status.scope, 'exact-tested-cases');
+      assert.equal(status.status, major === '9' ? 'Documentation-backed' : 'Unknown');
+      assert.equal(status.runtime.status, 'Unknown'); assert.equal(status.runtime.observedRelease, null); assert.equal(status.runtime.recordCount, 0);
       const result = builder.generate(item(d), d, context(major));
-      assert.equal(result.ok, false); assert.equal(result.text, ''); assert.equal(result.verificationText, '');
+      assert.equal(result.ok, major === '9', d.pt_name + ' ' + major);
+      if (major === '9') assert.equal(result.verification.status, 'Documentation-backed');
+      else { assert.equal(result.text, ''); assert.equal(result.verificationText, ''); }
     }
   }
 });
-check('literal synthetic case verifies only its exact ordered commands and diagnostic sequence', () => {
+check('literal synthetic runtime case labels only its exact ordered commands and diagnostic sequence', () => {
   const d = device('2911'), entry = item(d), c = context(), record = syntheticRecord(d, '9', 'txt', [],
     [{rule_id: 'exec.enable', text: 'enable'}, {rule_id: 'exec.configure-terminal', text: 'configure terminal'}, {rule_id: 'global.hostname', text: 'hostname R1'}, {rule_id: 'exec.end', text: 'end'}],
     [{rule_id: 'show.running-config', text: 'show running-config'}, {rule_id: 'show.ios.interface-brief', text: 'show ip interface brief'}]);
   const api = loadEngine([record]), result = api.generate(entry, d, c), status = api.verificationStatus(d, c);
-  assert.equal(status.status, 'Verified'); assert.match(status.reason, /changed commands/); assert.equal(status.recordCount, 1);
-  assert.equal(result.ok, true); assert.equal(result.verification.recordId, 'TEST_ONLY_SYNTHETIC');
-  assert.equal(result.verification.observedRelease, status.observedRelease);
+  assert.equal(status.status, 'Documentation-backed'); assert.equal(status.runtime.status, 'Verified'); assert.equal(status.runtime.recordCount, 1);
+  assert.equal(result.ok, true); assert.equal(result.verification.status, 'Runtime-tested');
+  assert.equal(result.verification.runtime.recordId, 'TEST_ONLY_SYNTHETIC');
+  assert.equal(result.verification.runtime.observedRelease, status.runtime.observedRelease);
   for (const modify of [row => row.commands.pop(), row => row.commands.reverse(), row => row.commands[2].rule_id = 'global.wrong-rule',
     row => row.commands[2].text = 'hostname R2', row => row.checks.pop(), row => row.checks[1].rule_id = 'show.wrong-rule']) {
     const changed = clone(record); modify(changed); const blocked = loadEngine([changed]).generate(entry, d, c);
-    assert.equal(blocked.ok, false); assert.equal(blocked.text, ''); assert.equal(blocked.verificationText, '');
+    assert.equal(blocked.ok, true); assert.equal(blocked.verification.status, 'Documentation-backed'); assert.equal(blocked.verification.runtime.status, 'Unknown');
   }
 });
-check('tested model status does not approve new parameters formats modules majors or device models', () => {
+check('changed documented parameters formats modules and models remain exportable without a runtime label', () => {
   const d = device('2911'), entry = item(d, {interfaces: [routed()], interfacesConfirmed: true}), record = testedCase(entry, d), api = loadEngine([record]);
-  assert.equal(api.verificationStatus(d, context()).status, 'Verified');
+  assert.equal(api.verificationStatus(d, context()).status, 'Documentation-backed');
   const cases = [[{...entry, config: {...entry.config, hostname: 'R2'}}, d, context()],
     [{...entry, config: {...entry.config, interfaces: [{...routed(), address: '192.168.10.2'}]}}, d, context()],
     [{...entry, config: {...entry.config, interfaces: [{...routed(), shutdown: true}]}}, d, context()],
-    [{...entry, modules: [{moduleId: 1, quantity: 1}]}, d, context()], [entry, d, context('9', 'cfg')], [entry, d, context('8')],
-    [item(device('2901')), device('2901'), context()], [entry, d, context('')]];
+    [{...entry, modules: [{moduleId: 1, quantity: 1}]}, d, context()], [entry, d, context('9', 'cfg')],
+    [item(device('2901')), device('2901'), context()]];
   for (const [changed, model, target] of cases) {
     const result = api.generate(changed, model, target);
-    assert.equal(result.ok, false); assert.equal(result.text, ''); assert.equal(result.verificationText, '');
+    assert.equal(result.ok, true, result.errors.join('\n')); assert.equal(result.verification.status, 'Documentation-backed'); assert.equal(result.verification.runtime.status, 'Unknown');
   }
+  for (const major of ['8', '']) assert.equal(api.generate(entry, d, context(major)).ok, false);
 });
-check('configuration-only CFG cases and previous template revisions cannot approve complete scripts', () => {
+check('old CFG cases and template revisions cannot add a runtime label to documented complete scripts', () => {
   const d = device('2911'), entry = item(d), c = context('9', 'cfg'), record = testedCase(entry, d, c);
   const withoutWrappers = clone(record);
   withoutWrappers.commands = withoutWrappers.commands.filter(row => !row.rule_id.startsWith('exec.'));
   const oldRevision = clone(record); oldRevision.template_revision = '2.0.0';
   for (const changed of [withoutWrappers, oldRevision]) {
     const result = loadEngine([changed]).generate(entry, d, c);
-    assert.equal(result.ok, false); assert.equal(result.text, ''); assert.equal(result.verificationText, '');
+    assert.equal(result.ok, true); assert.equal(result.verification.status, 'Documentation-backed'); assert.equal(result.verification.runtime.status, 'Unknown');
   }
 });
 check('documentation URLs catalogue flags and incomplete runtime metadata cannot promote verification', () => {
@@ -555,30 +568,33 @@ check('documentation URLs catalogue flags and incomplete runtime metadata cannot
     row => row.evidence.diagnostic_assertions = [], row => row.prerequisites = [], row => row.prerequisites = [' untrimmed '], row => row.commands[0].result = 'unknown', row => row.commands[0].text += '\nreload'];
   for (const modify of modifications) {
     const changed = clone(record); modify(changed); const api = loadEngine([changed]);
-    assert.equal(api.verificationStatus(d, context()).status, 'Unknown'); assert.equal(api.generate(entry, d, context()).ok, false);
+    assert.equal(api.verificationStatus(d, context()).status, 'Documentation-backed');
+    assert.equal(api.verificationStatus(d, context()).runtime.status, 'Unknown');
+    assert.equal(api.generate(entry, d, context()).verification.status, 'Documentation-backed');
   }
   d.version_profiles['9'].availability.verification_status = 'Verified';
   d.version_profiles['9'].features = [{slug: 'ssh', verification_status: 'Verified', support_mode: 'native'}];
-  assert.equal(builder.verificationStatus(d, context()).status, 'Unknown');
+  assert.equal(builder.verificationStatus(d, context()).runtime.status, 'Unknown');
 });
-check('conflicting exact releases fail closed rather than silently choosing a global-family release', () => {
+check('conflicting runtime releases suppress runtime approval but preserve documented generation', () => {
   const d = device('2911'), entry = item(d), first = testedCase(entry, d), second = clone(first);
   second.id = 'TEST_ONLY_OTHER_RELEASE'; second.observed_release = '9.0.2';
   const api = loadEngine([first, second]), status = api.verificationStatus(d, context());
-  assert.equal(status.status, 'Unknown'); assert.equal(status.observedRelease, null); assert.match(status.reason, /Conflicting/);
-  assert.equal(api.generate(entry, d, context()).ok, false);
+  assert.equal(status.status, 'Documentation-backed'); assert.equal(status.runtime.observedRelease, null); assert.match(status.runtime.reason, /Conflicting/);
+  assert.equal(api.generate(entry, d, context()).verification.status, 'Documentation-backed');
   second.model = '2901';
   const crossModel = loadEngine([first, second]);
-  assert.equal(crossModel.verificationStatus(d, context()).status, 'Unknown');
-  assert.equal(crossModel.generate(entry, d, context()).ok, false);
+  assert.equal(crossModel.verificationStatus(d, context()).runtime.status, 'Unknown');
+  assert.equal(crossModel.generate(entry, d, context()).verification.status, 'Documentation-backed');
 });
 check('manifest changes after initialization cannot mutate the trusted evidence snapshot', () => {
-  const d = device('2911'), entry = item(d), record = testedCase(entry, d), browser = {window: {PT_COMMAND_VERIFICATION: {schema_version: 1, records: [record]}}};
+  const d = device('2911'), entry = item(d), record = testedCase(entry, d), browser = {window: {PT_COMMAND_VERIFICATION: {schema_version: 1, records: [record]}, PT_COMMAND_DOCUMENTATION: clone(documentation)}};
   vm.runInNewContext(fs.readFileSync(path.join(root, 'assets/vendor/ipaddr.js'), 'utf8'), browser);
   vm.runInNewContext(engineSource, browser); browser.window.PT_COMMAND_VERIFICATION.records[0].commands[2].text = 'hostname R2';
-  assert.equal(browser.window.PTConfigBuilder.generate(entry, d, context()).ok, true);
+  browser.window.PT_COMMAND_DOCUMENTATION.references.find(row => row.model === d.pt_name).rule_ids = [];
+  assert.equal(browser.window.PTConfigBuilder.generate(entry, d, context()).verification.status, 'Runtime-tested');
 });
-check('missing browser runtime-evidence dependency fails closed without breaking manual worksheets', () => {
+check('missing documentation blocks CLI while missing optional runtime data does not', () => {
   const browser = {window: {}};
   vm.runInNewContext(engineSource, browser);
   const api = browser.window.PTConfigBuilder, router = device('2911'), ap = device('AccessPoint-PT');
@@ -586,6 +602,9 @@ check('missing browser runtime-evidence dependency fails closed without breaking
   assert.equal(api.verificationStatus(router, context()).status, 'Unknown');
   const worksheet = api.generate(item(ap), ap, context(''));
   assert.equal(worksheet.ok, true); assert.equal(worksheet.outputKind, 'worksheet'); assert.match(worksheet.text, /Not executable CLI/);
+  const documented = {window: {PT_COMMAND_DOCUMENTATION: clone(documentation)}};
+  vm.runInNewContext(engineSource, documented);
+  assert.equal(documented.window.PTConfigBuilder.generate(item(router), router, context()).verification.status, 'Documentation-backed');
 });
 check('ASA physical names follow the documented model-specific CLI interface ranges', () => {
   for (const [model, names] of [['ASA5505', ['Ethernet0/8', 'Ethernet1/0', 'FastEthernet0/1', 'GigabitEthernet1/1']], ['ASA5506-X', ['Gi0/1', 'Gi1/0', 'Gi1/9', 'Ethernet0/1']], ['ISA3000', ['Gi0/1', 'Gi1/9', 'FastEthernet0/1']]]) {
@@ -598,8 +617,110 @@ check('numeric IOS ACL identities respect documented ranges without restricting 
   for (const [type, names] of [['standard', ['0', '100', '199', '1300', '999999999999999999999']], ['extended', ['0', '1', '99', '200', '2700']]]) {
     for (const name of names) fails(item(d, {acls: [acl(name, type)]}), d, /Numeric IOS ACL/);
   }
-  for (const [name, type] of [['1', 'standard'], ['99', 'standard'], ['100', 'extended'], ['199', 'extended'], ['101_Users', 'standard'], ['Users.1', 'extended']]) succeeds(item(d, {acls: [acl(name, type)]}), d);
+  for (const [name, type] of [['1', 'standard'], ['99', 'standard'], ['101_Users', 'standard']]) succeeds(item(d, {acls: [acl(name, type)]}), d);
+  for (const name of ['100', '199', 'Users.1']) succeeds(item(device('Router-PT'), {acls: [acl(name, 'extended')]}), device('Router-PT'));
   fails(item(d, {acls: [acl('1', 'standard'), acl('001', 'standard')]}), d, /numeric aliases/);
+});
+
+check('malformed documentation metadata and duplicate model contexts fail closed', () => {
+  const d = device('2911'), entry = item(d), runtime = testedCase(entry, d);
+  const changes = [manifest => manifest.schema_version = true, manifest => manifest.template_revision = '2.0.1', manifest => manifest.extra = true,
+    manifest => manifest.references = null, manifest => manifest.references.push(clone(manifest.references.find(row => row.model === d.pt_name))),
+    manifest => manifest.references.find(row => row.model === d.pt_name).extra = true,
+    manifest => manifest.references.find(row => row.model === d.pt_name).model = {toString: null},
+    manifest => manifest.references.find(row => row.model === d.pt_name).source_url = 'https://example.com/commands.htm',
+    manifest => manifest.references.find(row => row.model === d.pt_name).source_url = 'https://tutorials.ptnetacad.net/help/default/./commands.htm',
+    manifest => manifest.references.find(row => row.model === d.pt_name).source_url = 'https://tutorials.ptnetacad.net/help/default//commands.htm',
+    manifest => manifest.references.find(row => row.model === d.pt_name).source_sha256 = '',
+    manifest => manifest.references.find(row => row.model === d.pt_name).checked_date = '2026-02-30',
+    manifest => manifest.references.find(row => row.model === d.pt_name).constraints[0].extra = true,
+    manifest => manifest.references.find(row => row.model === d.pt_name).constraints[0].pattern = '^[$'];
+  for (const change of changes) {
+    const manifest = clone(documentation); change(manifest);
+    const api = loadEngine([runtime], null, manifest), result = api.generate(entry, d, context());
+    assert.equal(api.verificationStatus(d, context()).status, 'Unknown');
+    assert.equal(result.ok, false); assert.equal(result.text, ''); assert.equal(result.verificationText, '');
+  }
+});
+check('unreviewed configuration and diagnostic rules block all output without affecting unrelated drafts', () => {
+  const d = device('2911'), entry = item(d, {interfaces: [routed()], interfacesConfirmed: true});
+  for (const rule of ['ios.interface.ipv4', 'show.ios.interface']) {
+    const manifest = clone(documentation), reference = manifest.references.find(row => row.model === d.pt_name);
+    reference.rule_ids = reference.rule_ids.filter(id => id !== rule);
+    reference.constraints = reference.constraints.filter(row => row.rule_id !== rule);
+    const api = loadEngine([], null, manifest), result = api.generate(entry, d, context());
+    assert.equal(api.verificationStatus(d, context()).status, 'Documentation-backed');
+    assert.equal(result.ok, false); assert.equal(result.text, ''); assert.equal(result.verificationText, '');
+    assert(result.errors.some(error => error.includes(rule)));
+    assert.equal(api.generate(item(d), d, context()).ok, true);
+  }
+});
+check('documentation constraints match whole lines even when a future pattern has top-level alternatives', () => {
+  const d = device('2911'), manifest = clone(documentation), reference = manifest.references.find(row => row.model === d.pt_name);
+  reference.constraints = reference.constraints.filter(row => row.rule_id !== 'global.hostname');
+  reference.constraints.push({rule_id: 'global.hostname', pattern: '^hostname Never|R1$', reason: 'Synthetic whole-line matching fixture only.'});
+  const result = loadEngine([], null, manifest).generate(item(d), d, context());
+  assert.equal(result.ok, false); assert.equal(result.text, '');
+  assert(result.errors.some(error => /global.hostname/.test(error)));
+});
+check('typed RSA presets and documented clock rates and interface envelopes restrict emitted arguments', () => {
+  const d = device('3560-24PS'), ssh = {enabled: true, version: 2, rsaBits: 1024, vtyStart: 0, vtyEnd: 4};
+  const config = {system: {domainName: 'lab.example', users: [{name: 'admin', secret: 'DummyOnly123', privilege: 15}], ssh}};
+  succeeds(item(d, config), d);
+  fails(item(d, {...config, system: {...config.system, ssh: {...ssh, rsaBits: 4096}}}), d, /RSA size/);
+  const router = device('2911');
+  fails(item(router, {interfaces: [routed('GigabitEthernet10/0')], interfacesConfirmed: true}), router, /ios.interface.select/);
+  fails(item(router, {interfaces: [{...routed('Serial0/0/0'), clockRate: 1300, dceConfirmed: true}], interfacesConfirmed: true}), router, /ios.interface.clock-rate/);
+  fails(item(d, {ipv6Routing: true}), d, /ios.ipv6-routing/);
+});
+check('C8200 PAT permits both numeric and named ACL chains documented by its own reference', () => {
+  const d = device('C8200'), draft = acl => item(d, {interfacesConfirmed: true,
+    interfaces: [{...routed('Gi0/0/0'), natRole: 'inside'}, {...routed('Gi0/0/1'), address: '203.0.113.1', natRole: 'outside'}],
+    acls: [{name: acl, type: 'standard', entries: [{action: 'permit', source: '192.168.10.0', sourceWildcard: '0.0.0.255'}]}],
+    nat: {pat: [{acl, interface: 'Gi0/0/1'}], static: []}});
+  assert.match(succeeds(draft('LAN'), d).text, /ip nat inside source list LAN interface GigabitEthernet0\/0\/1 overload/);
+  assert.match(succeeds(draft('1'), d).text, /ip nat inside source list 1 interface GigabitEthernet0\/0\/1 overload/);
+});
+check('compact router interface syntax follows each model reference rather than generic slot notation', () => {
+  for (const [model, accepted, rejected] of [
+    ['819', ['GigabitEthernet0', 'FastEthernet0', 'FastEthernet3', 'Serial0'], ['GigabitEthernet1', 'FastEthernet4', 'Serial1', 'GigabitEthernet0/0']],
+    ['829', ['GigabitEthernet0', 'GigabitEthernet6'], ['GigabitEthernet7', 'FastEthernet0', 'Serial0', 'GigabitEthernet0/0']]
+  ]) {
+    const d = device(model), draft = name => item(d, {interfacesConfirmed: true,
+      interfaces: [{...routed(name), address: '', mask: '', description: ''}]});
+    for (const name of accepted) {
+      const result = succeeds(draft(name), d);
+      assert(result.text.includes('interface ' + name));
+      assert(result.verificationText.includes('show interfaces ' + name));
+    }
+    for (const name of rejected) fails(draft(name), d, /ios.interface.select/);
+  }
+});
+check('inconsistent CGR1240 documentation does not infer positive syntax from no or default branches', () => {
+  const d = device('CGR1240'), draft = name => item(d, {interfacesConfirmed: true,
+    interfaces: [{...routed(name), address: '', mask: '', description: ''}]});
+  succeeds(item(d), d);
+  for (const name of ['GigabitEthernet0', 'FastEthernet0']) fails(draft(name), d, /ios.interface.select/);
+  for (const name of ['GigabitEthernet0/0', 'FastEthernet0/1']) fails(draft(name), d, /show.ios.interface/);
+});
+check('two-index switch and generic component references do not approve a third physical index', () => {
+  for (const model of ['2950-24', '2950T-24', '2960-24TT', 'Switch-PT', 'Switch-PT-Empty']) {
+    const d = device(model), draft = name => item(d, {interfacesConfirmed: true, interfaces: [access(name)]});
+    succeeds(draft('FastEthernet0/1'), d);
+    fails(draft('FastEthernet0/0/1'), d, /ios.interface.select/);
+  }
+  const d = device('Router-PT');
+  fails(item(d, {interfacesConfirmed: true, interfaces: [routed('GigabitEthernet0/0/1')]}), d, /ios.interface.select/);
+});
+check('industrial diagnostic interface bounds are independently checked before releasing a script', () => {
+  for (const [model, accepted, rejected] of [
+    ['IE-2000', ['FastEthernet1/1', 'FastEthernet1/8', 'GigabitEthernet1/2'], ['FastEthernet0/1', 'FastEthernet1/9', 'GigabitEthernet1/3']],
+    ['IE-3400', ['GigabitEthernet1/1', 'GigabitEthernet1/10'], ['GigabitEthernet0/1', 'GigabitEthernet1/11']]
+  ]) {
+    const d = device(model), draft = name => item(d, {interfacesConfirmed: true, interfaces: [access(name)]});
+    for (const name of accepted) succeeds(draft(name), d);
+    for (const name of rejected) fails(draft(name), d, /show.ios.interface/);
+  }
 });
 
 console.log(passed + ' configuration-builder checks passed.');

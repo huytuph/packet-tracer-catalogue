@@ -14,7 +14,7 @@ BUNDLE_PATH = ROOT / "data" / "catalogue-data.js"
 VERSION_EVIDENCE_PATH = ROOT / "data" / "version-evidence.json"
 INDEX_PATH = ROOT / "index.html"
 APP_JS = ROOT / "js" / "app.js"
-RUNTIME_JS = (ROOT / "data" / "command-verification.js", ROOT / "assets" / "vendor" / "ipaddr.js", ROOT / "js" / "config-builder.js",
+RUNTIME_JS = (ROOT / "data" / "command-verification.js", ROOT / "data" / "command-documentation.js", ROOT / "assets" / "vendor" / "ipaddr.js", ROOT / "js" / "config-builder.js",
               ROOT / "js" / "builder-ui.js", APP_JS)
 CSS_PATH = ROOT / "css" / "app.css"
 ICON_DIR = ROOT / "assets" / "icons"
@@ -315,7 +315,7 @@ def validate_offline_runtime() -> None:
 
     script_sources = re.findall(r"<script[^>]+src=['\"]([^'\"]+)['\"]", index, flags=re.I)
     expected_scripts = ['data/catalogue-data.js'] + [path.relative_to(ROOT).as_posix() for path in RUNTIME_JS]
-    check(script_sources == expected_scripts, "Runtime scripts must load catalogue data, command evidence, bundled address parser, builder engine, builder UI and app in order")
+    check(script_sources == expected_scripts, "Runtime scripts must load catalogue data, runtime/documentation evidence, bundled address parser, builder engine, builder UI and app in order")
 
     external_runtime = re.findall(r"<(?:script|link)[^>]+(?:src|href)=['\"]https?://", index, flags=re.I)
     check(not external_runtime, "index.html contains external runtime CSS/JS dependencies")

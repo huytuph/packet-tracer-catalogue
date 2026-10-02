@@ -6,9 +6,9 @@ This mapping covers the current 34 catalogue devices, 12 modules and 52 feature 
 
 The global Packet Tracer selector controls the catalogue and builder. A selected 6.x, 7.x, 8.x or 9.x family supplies only its scoped evidence. All versions is a combined planning/manual-worksheet context, not a verified CLI target. Availability, physical interfaces, capabilities and command syntax are separate claims. Documented inventory availability in 9.0.1 does not establish that a generated command was executed in that release.
 
-CLI generation and export require matching exact-release, device-model and ordered command-variant runtime evidence with prerequisites and a transcript. There are currently no runtime-verified command records. Manual worksheets and the parts list remain usable; neither claims executable command verification. A major-family summary must name its tested releases rather than imply that every minor release passed.
+CLI generation, copy and export require reviewed official command syntax for the selected model and documented release, not an exact runtime case for every hostname or IP address. Every emitted configuration/diagnostic rule and constrained variant must be covered; missing or unsupported variants block output. The installed 9.0.1 help supports only the recorded 9.x documentation context, not 6.x, 7.x or 8.x command claims. Manual worksheets and the parts list remain available independently.
 
-The [command verification manifest](COMMAND_VERIFICATION.md) allows only one common tested exact release per major across all models. Conflicting releases fail closed; the major label never implies certification of every minor release.
+The [command evidence contracts](COMMAND_VERIFICATION.md) distinguish Documentation-backed from Runtime-tested. Optional runtime evidence requires an exact case and one common tested release per major across models. Conflicting runtime releases suppress that label, not documentation-backed generation. There are currently no runtime-tested cases; a major label never implies certification of every minor release.
 
 ## Device mapping
 

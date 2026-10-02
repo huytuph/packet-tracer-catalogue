@@ -9,6 +9,7 @@ const uiSource = fs.readFileSync(path.join(root, 'js/builder-ui.js'), 'utf8');
 const engineSource = fs.readFileSync(path.join(root, 'js/config-builder.js'), 'utf8');
 const ipSource = fs.readFileSync(path.join(root, 'assets/vendor/ipaddr.js'), 'utf8');
 const evidenceSource = fs.readFileSync(path.join(root, 'data/command-verification.js'), 'utf8');
+const documentationSource = fs.readFileSync(path.join(root, 'data/command-documentation.js'), 'utf8');
 const dataWindow = {};
 vm.runInNewContext(fs.readFileSync(path.join(root, 'data/catalogue-data.js'), 'utf8'), {window: dataWindow});
 const catalogue = JSON.parse(JSON.stringify(dataWindow.PT_CATALOGUE));
@@ -16,7 +17,6 @@ const storageKey = 'ptCatalogue.builder.v1';
 const checks = [];
 const check = (name, run) => checks.push({name, run});
 const decode = value => String(value).replace(/&(amp|lt|gt|quot|#39);/g, (_, entity) => ({amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'"}[entity]));
-const testReleases = {'6': '6.3', '7': '7.3.1', '8': '8.2.2', '9': '9.0.1'};
 
 function assertCliScript(text) {
   assert.match(text, /^enable\nconfigure terminal\n/);
@@ -24,25 +24,6 @@ function assertCliScript(text) {
   const lines = text.trim().split('\n');
   for (const command of ['enable', 'configure terminal', 'end']) assert.equal(lines.filter(line => line.trim() === command).length, 1);
   assert(!/^!|^show /m.test(text));
-}
-
-// Synthetic UI fixtures only: these are not simulator observations or production evidence.
-function syntheticManifest() {
-  const gui = new Set(['WLC-2504', 'WLC-3504', 'MX65W', 'HomeRouter', 'AccessPoint-PT', 'LAP-PT', '3702i', 'Cloud-PT']);
-  return {schema_version: 1, records: catalogue.devices.filter(model => !gui.has(model.pt_name)).flatMap(model => Object.entries(testReleases).map(([major, release]) => ({
-    id: 'ui-synthetic-' + model.device_id + '-' + major,
-    model: model.pt_name, major_version: Number(major), observed_release: release, template_revision: '2.0.1', format: 'txt', modules: [], prerequisites: ['Synthetic UI fixture only, not simulator evidence.'],
-    commands: [{rule_id: 'ui.synthetic', text: 'hostname TestOnly', result: 'accepted'}],
-    checks: [{rule_id: 'ui.synthetic-check', text: 'show running-config', result: 'accepted'}],
-    evidence: {method: 'packet-tracer-runtime', transcript_path: 'evidence/runtime/synthetic-ui-only.txt', transcript_sha256: '0'.repeat(64), checked_date: '2026-10-02', error_count: 0, running_config_assertions: ['Synthetic UI fixture, not runtime evidence.'], diagnostic_assertions: ['Synthetic UI fixture, not runtime evidence.']}
-  })))};
-}
-
-function syntheticEngineSource() {
-  const marker = 'const approved = matchingRecord(device, major, extension, config.modules, commands, checks);';
-  assert.equal(engineSource.split(marker).length, 2, 'The documented UI-test adaptor marker changed');
-  // UI workflows exercise forms/emission; exact sequence authorization is tested with unmodified source separately.
-  return engineSource.replace(marker, 'const approved = runtimeRecords.find(record => record.model === device.pt_name && String(record.major_version) === major);');
 }
 
 // A deliberately small DOM covers generated controls and delegated events, not layout.
@@ -210,8 +191,10 @@ function boot(options = {}) {
   vm.runInNewContext(ipSource, context, {filename: 'ipaddr.js'});
   window.ipaddr = context.ipaddr;
   vm.runInNewContext(evidenceSource, context, {filename: 'command-verification.js'});
-  if (!options.productionEvidence) window.PT_COMMAND_VERIFICATION = options.manifest || syntheticManifest();
-  vm.runInNewContext(options.productionEvidence || options.exactVerification ? engineSource : syntheticEngineSource(), context, {filename: 'config-builder.js'});
+  vm.runInNewContext(documentationSource, context, {filename: 'command-documentation.js'});
+  if (options.manifest) window.PT_COMMAND_VERIFICATION = options.manifest;
+  if (Object.prototype.hasOwnProperty.call(options, 'documentation')) window.PT_COMMAND_DOCUMENTATION = options.documentation;
+  vm.runInNewContext(engineSource, context, {filename: 'config-builder.js'});
   if (options.engineOverride) window.PTConfigBuilder = options.engineOverride(window.PTConfigBuilder);
   vm.runInNewContext(uiSource, context, {filename: 'builder-ui.js'});
   const db = options.db || JSON.parse(JSON.stringify(catalogue));
@@ -251,6 +234,28 @@ function basicRouter(ui) {
   ui.field('address', '192.168.10.1', 'interfaces');
   ui.field('mask', '255.255.255.0', 'interfaces');
   ui.field('interfacesConfirmed', true);
+}
+
+// Isolated UI-test data only. Capturing emissions never authorizes production output.
+function syntheticRuntimeManifest(hostname = 'R1') {
+  const marker = 'const approved = matchingRecord(device, major, extension, config.modules, commands, checks);';
+  assert.equal(engineSource.split(marker).length, 2, 'The runtime-fixture capture marker changed');
+  const context = {window: {}};
+  vm.runInNewContext(ipSource, context); context.window.ipaddr = context.ipaddr;
+  vm.runInNewContext(evidenceSource, context); vm.runInNewContext(documentationSource, context);
+  vm.runInNewContext(engineSource.replace(marker, 'globalThis.__uiEmissions = {commands, checks}; ' + marker), context);
+  const engine = context.window.PTConfigBuilder, model = catalogue.devices.find(row => row.pt_name === '2911');
+  const config = engine.createConfig(model, 1);
+  config.hostname = hostname; config.interfacesConfirmed = true;
+  config.interfaces.push({name: 'GigabitEthernet0/0', mode: 'routed', address: '192.168.10.1', mask: '255.255.255.0', shutdown: false});
+  engine.generate({config, modules: []}, model, {major: '9', format: 'txt'});
+  assert(context.__uiEmissions, 'Basic router documentation must reach emission capture');
+  return {schema_version: 1, records: [{
+    id: 'ui-synthetic-runtime-only', model: model.pt_name, major_version: 9, observed_release: '9.0.1', template_revision: engine.templateRevision,
+    format: 'txt', modules: [], prerequisites: ['Synthetic UI fixture only, not simulator evidence.'],
+    commands: context.__uiEmissions.commands.map(row => ({...row, result: 'accepted'})), checks: context.__uiEmissions.checks.map(row => ({...row, result: 'accepted'})),
+    evidence: {method: 'packet-tracer-runtime', transcript_path: 'evidence/runtime/synthetic-ui-only.txt', transcript_sha256: '0'.repeat(64), checked_date: '2026-10-02', error_count: 0, running_config_assertions: ['Synthetic UI fixture, not runtime evidence.'], diagnostic_assertions: ['Synthetic UI fixture, not runtime evidence.']}
+  }]};
 }
 
 check('initialization is one-time, accessible, local, and has no guessed ports or IPs', () => {
@@ -429,20 +434,22 @@ check('all editable fields and row removal reach the generator contract', () => 
   assert.equal(ui.stored().instances.at(-1).config.enableRouting, true);
 });
 
-check('only verified configuration cases enable output and every edit invalidates copy/export', () => {
+check('documentation-backed output permits valid parameter changes and every edit invalidates copy/export', () => {
   const ui = boot(); basicRouter(ui); ui.action('generate');
   assert.equal(ui.get('builderErrors').textContent, '');
   assertCliScript(ui.get('builderPreview').value);
   assert.match(ui.get('builderWarnings').textContent, /plaintext credentials/i);
-  assert.match(ui.get('builderOutputStatus').textContent, /Verified configuration case/);
-  assert.match(ui.get('builderContext').textContent, /Current settings must match a recorded case/);
+  assert.match(ui.get('builderOutputStatus').textContent, /Documentation-backed.*Runtime-tested: No/);
+  assert.match(ui.get('builderContext').textContent, /Command syntax: Documentation-backed/);
   assert.equal(ui.get('builderCopy').disabled, false);
   assert.match(ui.get('builderVerification').value, /show/);
   ui.field('description', 'Changed', 'interfaces');
   assert.equal(ui.get('builderPreview').value, ''); assert.equal(ui.get('builderVerification').value, '');
   assert.equal(ui.get('builderCopy').disabled, true); assert.equal(ui.get('builderDownload').disabled, true);
+  ui.field('hostname', 'New-Router'); ui.field('address', '192.168.12.1', 'interfaces');
   ui.action('generate'); const format = ui.get('builderFormat'); format.value = 'cfg'; ui.emit('change', format);
   assertCliScript(ui.get('builderPreview').value);
+  assert.match(ui.get('builderPreview').value, /hostname New-Router/); assert.match(ui.get('builderPreview').value, /192\.168\.12\.1/);
   assert.equal(ui.get('builderDownload').disabled, false);
   ui.field('mask', '255.0.255.0', 'interfaces'); ui.action('generate');
   assert(ui.get('builderErrors').textContent); assert.equal(ui.get('builderPreview').value, '');
@@ -459,8 +466,11 @@ check('global version changes preserve configurations and invalidate outputs and
   assert(!Object.prototype.hasOwnProperty.call(ui.stored().instances[0], 'release'));
   assert.equal(ui.find('[data-field="interfacesConfirmed"]').checked, false);
   assert.equal(ui.get('builderPreview').value, '');
-  ui.action('generate'); assert.match(ui.get('builderErrors').textContent, /confirm/i);
+  assert.equal(ui.get('builderGenerate').disabled, true); ui.action('generate');
+  assert.match(ui.get('builderErrors').textContent, /documentation|command/i);
   ui.field('interfacesConfirmed', true); ui.action('generate');
+  assert.equal(ui.get('builderPreview').value, '');
+  ui.setVersion('9'); ui.field('interfacesConfirmed', true); ui.action('generate');
   assert.equal(ui.get('builderErrors').textContent, '');
   ui.setVersion(''); assert.equal(ui.find('[data-field="interfacesConfirmed"]').checked, false);
   ui.field('interfacesConfirmed', true); ui.action('generate');
@@ -477,7 +487,7 @@ check('distinct ASA adapters and unknown availability never imply certified resu
   assert.equal(ui.mount.querySelector('#builderRows-interfaces'), null);
   assert.equal(ui.mount.querySelector('[data-config-path="system.ssh.enabled"]'), null);
   assert.equal(ui.stored().instances.length, 1);
-  const unknown = boot({productionEvidence: true, major: '6'}); unknown.api.addDevice(deviceId('ISR4321'));
+  const unknown = boot({major: '6'}); unknown.api.addDevice(deviceId('ISR4321'));
   assert.match(unknown.get('builderContext').textContent, /availability is not verified/);
   unknown.action('generate');
   assert.match(unknown.get('builderContext').textContent + unknown.get('builderErrors').textContent, /availability|unknown|unverified|not verified/i);
@@ -762,7 +772,7 @@ check('routed SVI services and identity confirmation work on multilayer switches
   assert.equal(ui.get('builderPreview').value, '');
 });
 
-check('ASA uses distinct typed interfaces, routes, NAT objects and password controls', () => {
+check('ASA interfaces and routes generate while undocumented NAT object transitions stay blocked', () => {
   const ui = boot(); ui.api.addDevice(deviceId('ASA5506-X'));
   ui.action('add-config-row', {'config-list': 'system.users'}); const user = ui.stored().instances[0].config.system.users[0]._id;
   assert.equal(ui.mount.querySelector(`[data-config-path="system.users.@${user}.privilege"]`), null);
@@ -775,12 +785,15 @@ check('ASA uses distinct typed interfaces, routes, NAT objects and password cont
   }
   ui.action('add-config-row', {'config-list': 'asa.routes'}); const route = ui.stored().instances[0].config.asa.routes[0]._id;
   for (const [key, value] of Object.entries({nameif: 'outside', network: '0.0.0.0', mask: '0.0.0.0', nextHop: '203.0.113.1'})) ui.config(`asa.routes.@${route}.${key}`, value);
-  ui.action('add-config-row', {'config-list': 'asa.objects'}); const object = ui.stored().instances[0].config.asa.objects[0]._id;
-  for (const [key, value] of Object.entries({name: 'LAN', network: '192.168.1.0', mask: '255.255.255.0', inside: 'inside', outside: 'outside', dynamicInterface: true})) ui.config(`asa.objects.@${object}.${key}`, value);
   ui.field('interfacesConfirmed', true); ui.action('generate');
   assert.equal(ui.get('builderErrors').textContent, '');
   assert.match(ui.get('builderPreview').value, /nameif inside/); assert.match(ui.get('builderPreview').value, /route outside 0\.0\.0\.0 0\.0\.0\.0 203\.0\.113\.1/);
-  assert.match(ui.get('builderPreview').value, /nat \(inside,outside\) dynamic interface/); assert(!/username operator.*privilege/.test(ui.get('builderPreview').value));
+  assert(!/username operator.*privilege/.test(ui.get('builderPreview').value));
+  ui.action('add-config-row', {'config-list': 'asa.objects'}); const object = ui.stored().instances[0].config.asa.objects[0]._id;
+  for (const [key, value] of Object.entries({name: 'LAN', network: '192.168.1.0', mask: '255.255.255.0', inside: 'inside', outside: 'outside', dynamicInterface: true})) ui.config(`asa.objects.@${object}.${key}`, value);
+  ui.field('interfacesConfirmed', true); ui.action('generate');
+  assert.match(ui.get('builderErrors').textContent, /No reviewed official syntax.*asa\.object\.exit/);
+  assert.equal(ui.get('builderPreview').value, ''); assert.equal(ui.get('builderCopy').disabled, true); assert.equal(ui.get('builderDownload').disabled, true);
   assert(!ui.storage.get(storageKey).includes('ASASessionPassword42')); assert(!ui.storage.get(storageKey).includes('ASAEnablePassword42'));
 });
 
@@ -843,13 +856,13 @@ check('all 34 component editors render platform sections and 52 honest coverage 
   }
 });
 
-check('empty production evidence blocks every CLI model without confusing inventory with command verification', () => {
+check('missing documentation blocks every CLI model even when inventory is observed', () => {
   for (const major of ['', '6', '7', '8', '9']) {
-    const ui = boot({productionEvidence: true, major: ''});
+    const ui = boot({documentation: null, major: ''});
     for (const model of ui.db.devices.filter(model => ui.window.PTConfigBuilder.describe(model).cli)) {
       ui.setVersion(''); ui.api.addDevice(model.device_id); ui.setVersion(major);
       assert.equal(ui.get('builderGenerate').disabled, true, model.pt_name + ' / ' + major);
-      assert.match(ui.get('builderContext').textContent, /Command verification: Unknown/);
+      assert.match(ui.get('builderContext').textContent, /Command syntax: Unknown/);
       assert.match(ui.get('builderErrors').textContent, /CLI generation blocked/);
       ui.get('builderGenerate').disabled = false; ui.action('generate');
       assert.equal(ui.get('builderPreview').value, ''); assert.equal(ui.get('builderVerification').value, '');
@@ -860,28 +873,51 @@ check('empty production evidence blocks every CLI model without confusing invent
     assert.equal(ui.get('builderBom').disabled, false); ui.action('bom');
     assert.equal(ui.document.downloads.length, 1);
   }
-  const ui = boot({productionEvidence: true}); ui.api.addDevice(deviceId('2911'));
+  const ui = boot({documentation: null}); ui.api.addDevice(deviceId('2911'));
   assert.match(ui.get('builderContext').textContent, /Inventory observed release: 9\.0\.1/);
-  assert.match(ui.get('builderContext').textContent, /Command verification: Unknown/);
-  assert(!/Tested configuration cases/.test(ui.get('builderContext').textContent));
+  assert.match(ui.get('builderContext').textContent, /Command syntax: Unknown/);
 });
 
-check('a recorded model case does not authorize an unrecorded current configuration', () => {
-  const ui = boot({exactVerification: true}); basicRouter(ui);
+check('model runtime cases never label unrecorded current settings as runtime-tested', () => {
+  const ui = boot({manifest: syntheticRuntimeManifest('Recorded-Router')}); basicRouter(ui);
   assert.equal(ui.get('builderGenerate').disabled, false);
-  assert.match(ui.get('builderContext').textContent, /Current settings must match a recorded case/);
+  assert.match(ui.get('builderContext').textContent, /Command syntax: Documentation-backed/);
   ui.action('generate');
-  assert.match(ui.get('builderErrors').textContent, /recorded|verified|tested|match/i);
-  assert.equal(ui.get('builderPreview').value, ''); assert.equal(ui.get('builderVerification').value, '');
-  assert.equal(ui.get('builderCopy').disabled, true); assert.equal(ui.get('builderDownload').disabled, true);
+  assert.equal(ui.get('builderErrors').textContent, ''); assertCliScript(ui.get('builderPreview').value);
+  assert.match(ui.get('builderOutputStatus').textContent, /Documentation-backed.*Runtime-tested: No/);
+  ui.field('hostname', 'Recorded-Router'); ui.action('generate');
+  assert.match(ui.get('builderOutputStatus').textContent, /^Runtime-tested · Packet Tracer 9\.0\.1$/);
+  const format = ui.get('builderFormat'); format.value = 'cfg'; ui.emit('change', format);
+  assert.match(ui.get('builderOutputStatus').textContent, /Documentation-backed.*Runtime-tested: No/);
+  format.value = 'txt'; ui.emit('change', format);
+  assert.match(ui.get('builderOutputStatus').textContent, /^Runtime-tested/);
+  ui.field('address', '192.168.11.1', 'interfaces'); ui.action('generate');
+  assert.match(ui.get('builderOutputStatus').textContent, /Documentation-backed.*Runtime-tested: No/);
 });
 
-check('bare successful text and mismatched verified metadata cannot enable preview, copy or export', () => {
-  const variants = [undefined, {status: 'Unknown', observedRelease: '9.0.1', recordId: 'fake'}, {status: 'Verified', observedRelease: '8.2.2', recordId: 'fake'}, {status: 'Verified', observedRelease: '9.2.1', recordId: 'fake'}, {status: 'Verified', observedRelease: '9.0.1'}, {status: 'Verified', observedRelease: '9.0.1', recordId: ''}];
-  for (const verification of variants) {
-    const ui = boot({engineOverride: engine => ({...engine, generate() { return {ok: true, text: 'hostname Unsafe\n', filename: 'unsafe.txt', verificationText: 'show running-config\n', outputKind: 'cli', errors: [], warnings: [], verification}; }})});
+check('bare successful text and mismatched documentation or runtime metadata cannot enable output', () => {
+  const variants = [
+    () => undefined,
+    row => ({...row, status: 'Unknown'}),
+    row => ({...row, model: '1841'}),
+    row => ({...row, majorVersion: '8'}),
+    row => ({...row, documentedRelease: '8.2.2'}),
+    row => ({...row, documentedRelease: '9.2.1'}),
+    row => ({...row, documentationRecordId: ''}),
+    row => ({...row, documentationRecordId: 'wrong-record'}),
+    row => ({...row, documentationSources: []}),
+    row => ({...row, documentationSources: ['https://example.com/untrusted']}),
+    row => ({...row, documentationSources: row.documentationSources.map(url => url.replace('/default/', '/default/./'))}),
+    row => ({...row, documentationSources: row.documentationSources.map(url => url.replace('/default/', '/default//'))}),
+    row => ({...row, runtime: undefined}),
+    row => ({...row, runtime: {status: 'Verified', observedRelease: '9.0.1', recordId: 'fake'}}),
+    row => ({...row, status: 'Runtime-tested', runtime: {status: 'Verified', observedRelease: '9.0.1', recordId: 'fake'}}),
+    row => ({...row, status: 'Runtime-tested', runtime: {status: 'Unknown', observedRelease: null, recordId: null}})
+  ];
+  for (const variant of variants) {
+    const ui = boot({engineOverride: engine => ({...engine, generate(...args) { const result = engine.generate(...args); return {...result, verification: variant(result.verification)}; }})});
     basicRouter(ui); ui.action('generate');
-    assert.match(ui.get('builderErrors').textContent, /matching verified command evidence/);
+    assert.match(ui.get('builderErrors').textContent, /matching command documentation or runtime evidence/);
     assert.equal(ui.get('builderPreview').value, ''); assert.equal(ui.get('builderVerification').value, '');
     assert.equal(ui.get('builderCopy').disabled, true); assert.equal(ui.get('builderDownload').disabled, true);
     ui.action('copy'); ui.action('download');
@@ -890,9 +926,25 @@ check('bare successful text and mismatched verified metadata cannot enable previ
 });
 
 check('missing malformed and unavailable status evidence fails closed even through a forced generate action', () => {
-  for (const status of [undefined, {status: 'Verified', observedRelease: null}, {status: 'Verified', observedRelease: '9'}, {status: 'Verified', observedRelease: '8.2.2'}, {status: 'Partial', observedRelease: '9.0.1'}]) {
+  const variants = [
+    () => undefined,
+    row => ({...row, status: 'Verified'}),
+    row => ({...row, status: 'Partial'}),
+    row => ({...row, documentedRelease: null}),
+    row => ({...row, documentedRelease: '9'}),
+    row => ({...row, documentedRelease: '8.2.2'}),
+    row => ({...row, model: '1841'}),
+    row => ({...row, majorVersion: '8'}),
+    row => ({...row, documentationRecordId: null}),
+    row => ({...row, documentationSources: null}),
+    row => ({...row, documentationSources: ['http://tutorials.ptnetacad.net/help/default/CLI_routerIOS15.htm']}),
+    row => ({...row, documentationSources: row.documentationSources.map(url => url.replace('/default/', '/default/./'))}),
+    row => ({...row, documentationSources: row.documentationSources.map(url => url.replace('/default/', '/default//'))}),
+    row => ({...row, documentationSources: row.documentationSources.map(url => url.replace('/default/', '/default/../'))})
+  ];
+  for (const variant of variants) {
     let calls = 0;
-    const ui = boot({engineOverride: engine => ({...engine, verificationStatus: () => status, generate() { calls++; return {ok: true, text: 'unsafe'}; }})});
+    const ui = boot({engineOverride: engine => ({...engine, verificationStatus: (...args) => variant(engine.verificationStatus(...args)), generate() { calls++; return {ok: true, text: 'unsafe'}; }})});
     basicRouter(ui); assert.equal(ui.get('builderGenerate').disabled, true);
     ui.get('builderGenerate').disabled = false; ui.action('generate');
     assert.equal(calls, 0); assert.match(ui.get('builderErrors').textContent, /CLI generation blocked/);
@@ -904,7 +956,7 @@ check('missing malformed and unavailable status evidence fails closed even throu
   assert.equal(throwing.get('builderGenerate').disabled, true); assert.match(throwing.get('builderErrors').textContent, /unavailable/);
 });
 
-check('copy and download recheck evidence and global context before using a prior verified result', async () => {
+check('copy and download recheck documentation and global context before using prior output', async () => {
   let trusted = true;
   const ui = boot({engineOverride: engine => ({...engine, verificationStatus(model, context) { return trusted ? engine.verificationStatus(model, context) : {status: 'Unknown', observedRelease: null, reason: 'Evidence withdrawn.'}; }})});
   basicRouter(ui); ui.action('generate'); assert(ui.get('builderPreview').value);
@@ -915,10 +967,27 @@ check('copy and download recheck evidence and global context before using a prio
   const changed = boot(); basicRouter(changed); changed.action('generate');
   changed.settings.getVersion = () => '8'; changed.action('download');
   assert.equal(changed.document.downloads.length, 0); assert.equal(changed.get('builderPreview').value, '');
+  for (const action of ['copy', 'download']) {
+    let recordId = null;
+    const replaced = boot({engineOverride: engine => ({...engine, verificationStatus(...args) { const row = engine.verificationStatus(...args); return recordId ? {...row, documentationRecordId: recordId} : row; }})});
+    basicRouter(replaced); replaced.action('generate'); recordId = 'replacement-documentation'; replaced.action(action);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(replaced.clipboard.length, 0); assert.equal(replaced.document.downloads.length, 0);
+    assert.equal(replaced.get('builderPreview').value, '');
+  }
+});
+
+check('withdrawn exact runtime evidence invalidates runtime-labelled output without blocking documentation', async () => {
+  let runtimeAvailable = true;
+  const ui = boot({manifest: syntheticRuntimeManifest(), engineOverride: engine => ({...engine, verificationStatus(...args) { const row = engine.verificationStatus(...args); return runtimeAvailable ? row : {...row, runtime: {status: 'Unknown', observedRelease: null, recordCount: 0, recordIds: []}}; }})});
+  basicRouter(ui); ui.action('generate'); assert.match(ui.get('builderOutputStatus').textContent, /^Runtime-tested/);
+  runtimeAvailable = false; ui.action('copy'); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(ui.clipboard.length, 0); assert.equal(ui.get('builderPreview').value, '');
+  assert.equal(ui.get('builderGenerate').disabled, false);
 });
 
 check('manual GUI worksheets remain honest TXT exports with empty production command records', () => {
-  const ui = boot({productionEvidence: true, major: ''}); ui.api.addDevice(deviceId('AccessPoint-PT'));
+  const ui = boot({major: ''}); ui.api.addDevice(deviceId('AccessPoint-PT'));
   const ssid = ui.stored().instances[0].config.settings.find(row => row.label === 'SSID');
   ui.config(`settings.@${ssid._id}.value`, 'Manual plan');
   assert.equal(ui.get('builderGenerate').disabled, false); ui.action('generate');
